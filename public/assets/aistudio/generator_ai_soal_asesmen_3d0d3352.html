@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generator AI - Soal by Zainul Bashori</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .form-checkbox:checked { background-color: #4f46e5; border-color: #4f46e5; }
+        .packet-card { border-left: 4px solid #4f46e5; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-in { animation: fadeIn 0.3s ease-out forwards; }
+    </style>
+</head>
+<body class="bg-slate-900 text-white antialiased">
+    <div class="container mx-auto px-4 py-8 md:py-12">
+        <header class="text-center mb-10">
+            <h1 class="text-3xl md:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-indigo-500">Generator AI - Soal</h1>
+            <p class="text-slate-400 mt-2">oleh Zainul Bashori</p>
+        </header>
+
+        <main class="max-w-5xl mx-auto">
+            <!-- Panduan Penggunaan -->
+            <div class="bg-slate-800 p-6 rounded-2xl shadow-xl mb-8 border-2 border-indigo-500 animate-in">
+                <h2 class="text-lg font-bold text-white mb-2">Panduan Penggunaan</h2>
+                <ol class="text-slate-300 text-sm list-decimal ml-5 space-y-1">
+                    <li>Isi Informasi Umum atau gunakan modul <strong>Pengisian Otomatis (Auto-Fill)</strong> di bawah jika ingin memetakan bab &amp; TP sekaligus secara instan.</li>
+                    <li><strong>Pilihan Stimulus:</strong> Pilih <em>Dengan Stimulus</em> (atur jumlah paragraf atau centang gambar) atau pilih <em>Tanpa Stimulus</em> jika ingin soal langsung tanpa bacaan/gambar.</li>
+                    <li>Pilih jenis soal &amp; isi nomor soal (contoh: "1,2,3" atau "1-5").</li>
+                    <li>Klik <strong>Generate Prompt AI</strong> &rarr; Salin hasil ke AI (Gemini/ChatGPT).</li>
+                    <li>Hasil soal salin ke MS Word dengan fitur <em>"Keep Source Formatting"</em> agar tabel tetap rapi.</li>
+                </ol>
+            </div>
+
+            <div class="bg-gradient-to-r from-indigo-950/70 via-slate-800 to-indigo-950/70 p-6 rounded-2xl shadow-xl mb-8 border border-indigo-500/50 animate-in">
+                <div class="flex items-center justify-between mb-3">
+                    <h2 class="text-lg font-bold text-indigo-300 flex items-center gap-2">
+                        <span class="bg-indigo-500 text-white text-xs px-2 py-0.5 rounded-full font-mono">FITUR BARU</span>
+                        Pengisian Otomatis Paket Soal (Auto-Fill)
+                    </h2>
+                    <span class="text-xs text-slate-400 hidden sm:inline">Sesuai Lampiran Ketentuan Pemetaan</span>
+                </div>
+                <p class="text-xs text-slate-300 mb-4 leading-relaxed">
+                    Masukkan daftar Bab beserta Subbab / Tujuan Pembelajaran (TP) serta jumlah soal. Sistem akan <strong>secara otomatis mendistribusikan materi, jenis soal (pemetaan 1–25), tingkat kesulitan, stimulus, dan membentuk semua paket soal</strong> ke formulir di bawah.
+                </p>
+
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                    <div class="md:col-span-3">
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">Daftar Bab, Subbab, dan/atau TP (Pisahkan baris atau beri penomoran):</label>
+                        <textarea id="auto-input-materi" rows="4" class="w-full bg-slate-900/90 border border-slate-600 rounded-xl px-3 py-2 text-xs text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500 font-sans" placeholder="Contoh:
+Bab 1: Pertumbuhan dan Perkembangan
+- Subbab: Pubertas dan perubahan fisik
+- TP: Menganalisis perbedaan perkembangan fisik remaja
+Bab 2: Sistem Koordinasi
+- TP: Menjelaskan fungsi bagian-bagian neuron dan otak"></textarea>
+                    </div>
+                    <div class="flex flex-col justify-between">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-300 mb-1">Jumlah Soal:</label>
+                            <input type="number" id="auto-input-jumlah" value="25" min="1" max="50" class="w-full bg-slate-900/90 border border-slate-600 rounded-xl px-3 py-2 text-sm text-indigo-400 font-bold outline-none focus:ring-2 focus:ring-indigo-500 text-center">
+                            <p class="text-[10px] text-yellow-400 mt-1 italic">Aturan tetap: nomor 1–25 dipetakan baku sesuai dokumen.</p>
+                        </div>
+                        <button type="button" id="btn-run-autofill" class="mt-3 md:mt-0 w-full bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs shadow-lg transition-transform transform active:scale-95 flex items-center justify-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                            Terapkan Otomatis ke Paket
+                        </button>
+                    </div>
+                </div>
+
+                <div id="auto-table-preview-container" class="hidden mt-4 pt-4 border-t border-slate-700">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-xs font-semibold text-indigo-300">Pratinjau Tabel 7 Kolom Rekomendasi (Format Dokumen):</span>
+                        <button type="button" id="btn-toggle-table" class="text-[11px] text-slate-400 hover:text-white underline">Tutup Pratinjau</button>
+                    </div>
+                    <div class="overflow-x-auto rounded-xl border border-slate-700 bg-slate-900/90 text-xs">
+                        <table class="w-full text-left border-collapse" id="recommendation-table">
+                            <thead class="bg-slate-800 text-slate-300 text-[11px] uppercase tracking-wider">
+                                <tr>
+                                    <th class="p-2 border-b border-slate-700 font-semibold">Nomor</th>
+                                    <th class="p-2 border-b border-slate-700 font-semibold">Bab</th>
+                                    <th class="p-2 border-b border-slate-700 font-semibold">Subbab/Tujuan Pembelajaran</th>
+                                    <th class="p-2 border-b border-slate-700 font-semibold">Jenis Soal</th>
+                                    <th class="p-2 border-b border-slate-700 font-semibold">Tingkatan Soal</th>
+                                    <th class="p-2 border-b border-slate-700 font-semibold">Nomor Soal</th>
+                                    <th class="p-2 border-b border-slate-700 font-semibold">Stimulus</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-800 text-slate-300 font-mono text-[11px]" id="recommendation-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <form id="prompt-generator-form">
+                <div class="bg-slate-800 p-6 rounded-2xl shadow-xl mb-6 border border-slate-700">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-lg font-semibold text-indigo-400 flex items-center gap-2"><span class="bg-indigo-500/20 p-1 rounded text-xs">01</span> Informasi Umum</h2>
+                        <div class="flex gap-2">
+                            <button type="button" id="btn-export-json" class="text-[10px] bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded-lg transition border border-slate-600">Export Data</button>
+                            <button type="button" id="btn-import-json" class="text-[10px] bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded-lg transition border border-slate-600">Import Data</button>
+                            <input type="file" id="json-input" accept=".json" class="hidden">
+                        </div>
+                    </div>
+                    <p class="text-yellow-400 text-[10px] mb-4 italic">Fungsi: Gunakan Export untuk menyimpan draf ke file, dan Import untuk memuat kembali file data yang telah disimpan.</p>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div><label class="block text-sm font-medium text-slate-300 mb-2">Mata Pelajaran</label><input type="text" id="mapel" placeholder="Contoh: IPA" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500 transition"></div>
+                        <div><label class="block text-sm font-medium text-slate-300 mb-2">Kelas</label><input type="text" id="kelas" placeholder="Contoh: 7" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500 transition"></div>
+                        <div><label class="block text-sm font-medium text-slate-300 mb-2">Peringkat</label><select id="tingkatan" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500 transition text-slate-200"><option>SD / Sekolah Rendah</option><option selected>SMP / Menengah Rendah</option><option>SMA / Menengah Atas</option></select></div>
+                    </div>
+                </div>
+
+                <div id="packets-container" class="space-y-6"></div>
+
+                <div class="mt-6">
+                    <button type="button" id="add-packet-btn" class="w-full py-3 border-2 border-dashed border-slate-600 rounded-2xl text-slate-400 hover:text-indigo-400 hover:border-indigo-500 transition-all flex items-center justify-center gap-2 font-medium">Tambah Paket Soal Baru</button>
+                    <p class="text-yellow-400 text-[10px] text-center mt-2 italic">Fungsi: Klik untuk menambah bagian baru jika ingin memisahkan materi, bab soal, atau stimulus (bacaan/gambar) yang berbeda.</p>
+                </div>
+
+                <div class="bg-slate-800 p-6 rounded-2xl shadow-xl mt-6 border border-slate-700">
+                    <h2 class="text-lg font-semibold mb-4 text-indigo-400 flex items-center gap-2"><span class="bg-indigo-500/20 p-1 rounded text-xs">02</span> Ringkasan Soal</h2>
+                    <div class="flex items-center gap-4"><label class="text-sm font-medium text-slate-300">Total Keseluruhan Soal:</label><input type="text" id="total-questions-display" value="0" readonly class="w-24 bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-center text-indigo-400 font-bold outline-none cursor-default shadow-inner"></div>
+                </div>
+
+                <div class="bg-slate-800 p-6 rounded-2xl shadow-xl mt-6 border border-slate-700">
+                    <h2 class="text-lg font-semibold mb-4 text-indigo-400 flex items-center gap-2"><span class="bg-indigo-500/20 p-1 rounded text-xs">03</span> Kelengkapan Output</h2>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div class="flex items-center gap-3 bg-slate-700/50 p-3 rounded-xl border border-slate-600"><input id="materi_esensial" name="kelengkapan_soal" type="checkbox" value="Materi Esensial" class="form-checkbox h-5 w-5 rounded text-indigo-600 bg-slate-600 border-slate-500"><label for="materi_esensial" class="text-sm text-slate-200">Materi Esensial</label></div>
+                        <div class="flex items-center gap-3 bg-slate-700/50 p-3 rounded-xl border border-slate-600"><input id="kisi_kisi" name="kelengkapan_soal" type="checkbox" value="Kisi-Kisi" class="form-checkbox h-5 w-5 rounded text-indigo-600 bg-slate-600 border-slate-500"><label for="kisi_kisi" class="text-sm text-slate-200">Kisi-kisi</label></div>
+                        <div class="flex items-center gap-3 bg-slate-700/50 p-3 rounded-xl border border-slate-600"><input id="kunci_skor" name="kelengkapan_soal" type="checkbox" value="Kunci dan Skor Jawaban" class="form-checkbox h-5 w-5 rounded text-indigo-600 bg-slate-600 border-slate-500" checked><label for="kunci_skor" class="text-sm text-slate-200">Kunci & Skor</label></div>
+                        <div class="flex items-center gap-3 bg-slate-700/50 p-3 rounded-xl border border-slate-600"><input id="telaah_soal" name="kelengkapan_soal" type="checkbox" value="Telaah Soal" class="form-checkbox h-5 w-5 rounded text-indigo-600 bg-slate-600 border-slate-500"><label for="telaah_soal" class="text-sm text-slate-200">Telaah Soal</label></div>
+                    </div>
+                </div>
+
+                <div class="mt-10 flex flex-col items-center justify-center">
+                    <button type="submit" id="btn-prompt" class="w-full lg:w-96 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 px-8 rounded-full shadow-lg transition-transform transform hover:scale-105 active:scale-95 flex items-center justify-center gap-2">Generate Prompt AI</button>
+                    <p class="text-yellow-400 text-[10px] text-center mt-3 italic">Fungsi: Klik untuk menghasilkan perintah (prompt) lengkap yang akan Anda tempelkan ke AI (Gemini/ChatGPT).</p>
+                </div>
+            </form>
+
+            <div id="output-section" class="mt-10 bg-slate-800 rounded-3xl shadow-2xl border border-slate-700 hidden overflow-hidden">
+                <div class="flex justify-between items-center p-6 bg-slate-700/50 border-b border-slate-600">
+                    <h2 class="text-xl font-bold text-white">Prompt AI Terhasil</h2>
+                    <button id="copy-button" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-6 rounded-xl transition shadow-md active:scale-95 text-sm">Salin Teks Prompt</button>
+                </div>
+                <div class="p-6">
+                    <div id="prompt-output" class="text-slate-300 whitespace-pre-wrap break-words text-sm leading-relaxed font-mono bg-slate-900/80 p-6 rounded-2xl border border-slate-700 overflow-x-auto"></div>
+                    <p class="text-yellow-400 text-[10px] mt-4 italic">Petunjuk: Setelah menyalin, tempel ke AI. Jika sudah ada hasilnya, salin ke MS Word dan gunakan fitur "Keep Source Formatting" agar tabel tetap rapi bergaris.</p>
+                </div>
+            </div>
+        </main>
+        <footer class="text-center mt-12 mb-8 text-slate-500 text-sm"><p>&copy; Developed by Zainul Bashori I 082331490484</p></footer>
+    </div>
+
+    <!-- Toast notification element (replaces alert) -->
+    <div id="toast-box" class="fixed bottom-6 right-6 z-50 bg-indigo-600 text-white px-4 py-2.5 rounded-xl shadow-2xl text-xs font-semibold hidden transition-all duration-300"></div>
+
+    <template id="packet-template">
+        <div class="packet-card bg-slate-800 p-6 rounded-2xl shadow-xl border border-slate-700 relative animate-in mb-6">
+            <button type="button" class="remove-packet-btn absolute top-4 right-4 text-slate-500 hover:text-red-400 transition"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
+            <h2 class="text-lg font-semibold mb-2 text-indigo-400 flex items-center gap-2"><span class="bg-indigo-500/20 p-1 rounded packet-number">01</span> Rincian Paket Soal</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div class="space-y-4">
+                    <div><label class="block text-sm font-medium text-slate-300 mb-2">Materi Pokok / Bab</label><input type="text" name="materi" placeholder="Contoh: Ekosistem" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500 transition text-sm"></div>
+                    <div><label class="block text-sm font-medium text-slate-300 mb-2">Sub Materi / Tujuan Pembelajaran</label><textarea name="tujuan" rows="4" placeholder="Siswa dapat menganalisis..." class="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500 transition resize-none text-sm"></textarea></div>
+                    
+                    <div class="mt-4 pt-4 border-t border-slate-600">
+                        <label class="block text-sm font-medium text-slate-300 mb-2">Opsi Stimulus</label>
+                        <select class="stimulus-mode-select w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-xs text-slate-200 mb-3 outline-none focus:ring-2 focus:ring-indigo-500">
+                            <option value="dengan" selected>Dengan Stimulus (Teks Paragraf / Gambar)</option>
+                            <option value="tanpa">Tanpa Stimulus (Soal Langsung)</option>
+                        </select>
+
+                        <!-- Kontainer Opsi Stimulus Detail -->
+                        <div class="stimulus-detail-container space-y-3">
+                            <div class="flex items-center gap-2 mb-1">
+                                <input type="checkbox" class="stimulus-gambar-check h-4 w-4 rounded text-indigo-600 bg-slate-600 border-slate-500">
+                                <label class="text-sm font-medium text-slate-300">Sertakan Stimulus Gambar</label>
+                            </div>
+                            <p class="text-yellow-400 text-[10px] mb-3 italic">Alur: Centang kotak ini jika Anda ingin soal berbasis gambar. Teks Paragraf di bawah akan diabaikan.</p>
+                            
+                            <div class="gaya-gambar-container hidden mb-3">
+                                <select class="gaya-gambar-select w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-xs text-slate-300">
+                                    <option value="Berwarna">Gambar Berwarna</option>
+                                    <option value="Hitam Putih">Hitam Putih (Mudah Difotokopi)</option>
+                                </select>
+                            </div>
+
+                            <div class="paragraf-teks-container mb-2">
+                                <label class="text-[11px] text-slate-400 block mb-1">Jumlah Paragraf Teks (Bila tanpa gambar):</label>
+                                <select class="jumlah-paragraf-select w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-xs text-slate-300">
+                                    <option value="1">1 Paragraf</option>
+                                    <option value="2">2 Paragraf</option>
+                                    <option value="3">3 Paragraf</option>
+                                    <option value="4">4 Paragraf</option>
+                                    <option value="5">5 Paragraf</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-slate-300 mb-4">Jenis Soal, Tingkat, & Nomor</label>
+                    <p class="text-yellow-400 text-[10px] mb-2 italic">Petunjuk: Isi nomor soal dengan format "1,2,3" atau rentang "1-5".</p>
+                    <div class="space-y-3 bg-slate-700/30 p-4 rounded-xl border border-slate-700">
+                        <div class="flex items-center gap-2"><input type="checkbox" value="Pilihan Ganda" class="soal-check h-4 w-4 rounded text-indigo-600 bg-slate-600 border-slate-500"><span class="text-xs text-slate-300 w-24">Pil. Ganda</span><select class="soal-level bg-slate-800 border border-slate-600 rounded px-1 py-1 text-[10px] outline-none disabled:opacity-30" disabled><option>Mudah</option><option selected>Sedang</option><option>Sulit</option></select><input type="text" placeholder="No." class="soal-nomor w-full bg-slate-800 border border-slate-600 rounded px-2 py-1 text-xs outline-none disabled:opacity-30" disabled></div>
+                        <div class="flex items-center gap-2"><input type="checkbox" value="PG Kompleks" class="soal-check h-4 w-4 rounded text-indigo-600 bg-slate-600 border-slate-500"><span class="text-xs text-slate-300 w-24">PG Kompleks</span><select class="soal-level bg-slate-800 border border-slate-600 rounded px-1 py-1 text-[10px] outline-none disabled:opacity-30" disabled><option>Mudah</option><option selected>Sedang</option><option>Sulit</option></select><input type="text" placeholder="No." class="soal-nomor w-full bg-slate-800 border border-slate-600 rounded px-2 py-1 text-xs outline-none disabled:opacity-30" disabled></div>
+                        <div class="flex items-center gap-2"><input type="checkbox" value="Menjodohkan" class="soal-check h-4 w-4 rounded text-indigo-600 bg-slate-600 border-slate-500"><span class="text-xs text-slate-300 w-24">Menjodohkan</span><select class="soal-level bg-slate-800 border border-slate-600 rounded px-1 py-1 text-[10px] outline-none disabled:opacity-30" disabled><option>Mudah</option><option selected>Sedang</option><option>Sulit</option></select><input type="text" placeholder="No." class="soal-nomor w-full bg-slate-800 border border-slate-600 rounded px-2 py-1 text-xs outline-none disabled:opacity-30" disabled></div>
+                        <div class="flex items-center gap-2"><input type="checkbox" value="Benar-Salah" class="soal-check h-4 w-4 rounded text-indigo-600 bg-slate-600 border-slate-500"><span class="text-xs text-slate-300 w-24">Benar-Salah</span><select class="soal-level bg-slate-800 border border-slate-600 rounded px-1 py-1 text-[10px] outline-none disabled:opacity-30" disabled><option>Mudah</option><option selected>Sedang</option><option>Sulit</option></select><input type="text" placeholder="No." class="soal-nomor w-full bg-slate-800 border border-slate-600 rounded px-2 py-1 text-xs outline-none disabled:opacity-30" disabled></div>
+                        <div class="flex items-center gap-2"><input type="checkbox" value="Uraian Pendek" class="soal-check h-4 w-4 rounded text-indigo-600 bg-slate-600 border-slate-500"><span class="text-xs text-slate-300 w-24">Uraian Pendek</span><select class="soal-level bg-slate-800 border border-slate-600 rounded px-1 py-1 text-[10px] outline-none disabled:opacity-30" disabled><option>Mudah</option><option selected>Sedang</option><option>Sulit</option></select><input type="text" placeholder="Max 2 kata" class="soal-nomor w-full bg-slate-800 border border-slate-600 rounded px-2 py-1 text-xs outline-none disabled:opacity-30" disabled></div>
+                        <div class="flex items-center gap-2"><input type="checkbox" value="Uraian" class="soal-check h-4 w-4 rounded text-indigo-600 bg-slate-600 border-slate-500"><span class="text-xs text-slate-300 w-24">Uraian</span><select class="soal-level bg-slate-800 border border-slate-600 rounded px-1 py-1 text-[10px] outline-none disabled:opacity-30" disabled><option>Mudah</option><option selected>Sedang</option><option>Sulit</option></select><input type="text" placeholder="No." class="soal-nomor w-full bg-slate-800 border border-slate-600 rounded px-2 py-1 text-xs outline-none disabled:opacity-30" disabled></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <script>
+        // Pemetaan Tetap Jenis Soal Nomor 1-25 sesuai Bagian D Lampiran
+        const FIXED_MAPPING_25 = {
+            1:  { type: "Pilihan Ganda", level: "Sedang", formType: "Pilihan Ganda" },
+            2:  { type: "PG Kompleks (PGK)", level: "Sedang", formType: "PG Kompleks" },
+            3:  { type: "Uraian Singkat", level: "Mudah", formType: "Uraian Pendek" },
+            4:  { type: "Benar/Salah", level: "Mudah", formType: "Benar-Salah" },
+            5:  { type: "Menjodohkan", level: "Sedang", formType: "Menjodohkan" },
+            6:  { type: "Uraian Panjang", level: "Sulit", formType: "Uraian" },
+            7:  { type: "Pilihan Ganda", level: "Sedang", formType: "Pilihan Ganda" },
+            8:  { type: "Uraian Singkat", level: "Mudah", formType: "Uraian Pendek" },
+            9:  { type: "Benar/Salah", level: "Sedang", formType: "Benar-Salah" },
+            10: { type: "PG Kompleks (PGK)", level: "Sulit", formType: "PG Kompleks" },
+            11: { type: "Menjodohkan", level: "Sedang", formType: "Menjodohkan" },
+            12: { type: "Uraian Panjang", level: "Sulit", formType: "Uraian" },
+            13: { type: "Pilihan Ganda", level: "Mudah", formType: "Pilihan Ganda" },
+            14: { type: "PG Kompleks (PGK)", level: "Sedang", formType: "PG Kompleks" },
+            15: { type: "Benar/Salah", level: "Mudah", formType: "Benar-Salah" },
+            16: { type: "Benar/Salah", level: "Sedang", formType: "Benar-Salah" },
+            17: { type: "Menjodohkan", level: "Sulit", formType: "Menjodohkan" },
+            18: { type: "Uraian Panjang", level: "Sulit", formType: "Uraian" },
+            19: { type: "Pilihan Ganda", level: "Sedang", formType: "Pilihan Ganda" },
+            20: { type: "PG Kompleks (PGK)", level: "Sulit", formType: "PG Kompleks" },
+            21: { type: "Uraian Panjang", level: "Sedang", formType: "Uraian" },
+            22: { type: "Benar/Salah", level: "Sedang", formType: "Benar-Salah" },
+            23: { type: "PG Kompleks (PGK)", level: "Sedang", formType: "PG Kompleks" },
+            24: { type: "Uraian Panjang", level: "Sulit", formType: "Uraian" },
+            25: { type: "Pilihan Ganda", level: "Sulit", formType: "Pilihan Ganda" }
+        };
+
+        const packetsContainer = document.getElementById('packets-container');
+        const addPacketBtn = document.getElementById('add-packet-btn');
+        const packetTemplate = document.getElementById('packet-template');
+        const form = document.getElementById('prompt-generator-form');
+        const outputSection = document.getElementById('output-section');
+        const promptOutput = document.getElementById('prompt-output');
+        const copyButton = document.getElementById('copy-button');
+        const totalQuestionsDisplay = document.getElementById('total-questions-display');
+
+        function showMessage(msg, isError = false) {
+            const toast = document.getElementById('toast-box');
+            if (!toast) return;
+            toast.textContent = msg;
+            toast.className = `fixed bottom-6 right-6 z-50 px-4 py-2.5 rounded-xl shadow-2xl text-xs font-semibold transition-all duration-300 ${isError ? 'bg-rose-600' : 'bg-indigo-600'} text-white`;
+            toast.classList.remove('hidden');
+            setTimeout(() => toast.classList.add('hidden'), 3500);
+        }
+
+        function parseNomorSoal(inputStr) {
+            let total = 0;
+            if(!inputStr) return 0;
+            const parts = inputStr.split(/[ ,;]+/);
+            for(let part of parts) {
+                if(part.includes('-')) {
+                    const bounds = part.split('-');
+                    if(bounds.length === 2 && !isNaN(bounds[0]) && !isNaN(bounds[1])) {
+                        total += Math.abs(parseInt(bounds[1]) - parseInt(bounds[0])) + 1;
+                    }
+                } else if(!isNaN(part) && part.trim() !== '') {
+                    total += 1;
+                }
+            }
+            return total;
+        }
+
+        function calculateTotalQuestions() {
+            let total = 0;
+            document.querySelectorAll('.soal-nomor').forEach(input => {
+                if (!input.disabled) {
+                    total += parseNomorSoal(input.value);
+                }
+            });
+            totalQuestionsDisplay.value = total;
+        }
+
+        function addPacket() {
+            const clone = packetTemplate.content.cloneNode(true);
+            const packetCard = clone.querySelector('.packet-card');
+            
+            const stimulusModeSelect = packetCard.querySelector('.stimulus-mode-select');
+            const stimulusDetailContainer = packetCard.querySelector('.stimulus-detail-container');
+            const gambarCheck = packetCard.querySelector('.stimulus-gambar-check');
+            const gayaContainer = packetCard.querySelector('.gaya-gambar-container');
+            const paragrafContainer = packetCard.querySelector('.paragraf-teks-container');
+
+            stimulusModeSelect.addEventListener('change', () => {
+                const isDengan = stimulusModeSelect.value === 'dengan';
+                stimulusDetailContainer.classList.toggle('hidden', !isDengan);
+            });
+
+            gambarCheck.addEventListener('change', () => { 
+                gayaContainer.classList.toggle('hidden', !gambarCheck.checked);
+                paragrafContainer.classList.toggle('hidden', gambarCheck.checked);
+            });
+
+            packetCard.querySelectorAll('.soal-check').forEach(check => {
+                check.addEventListener('change', function() {
+                    const row = this.closest('div');
+                    row.querySelector('.soal-level').disabled = !this.checked;
+                    row.querySelector('.soal-nomor').disabled = !this.checked;
+                    calculateTotalQuestions();
+                });
+            });
+
+            packetCard.querySelectorAll('.soal-nomor').forEach(input => input.addEventListener('input', calculateTotalQuestions));
+            packetCard.querySelector('.remove-packet-btn').addEventListener('click', function() { 
+                if(document.querySelectorAll('.packet-card').length > 1) { 
+                    packetCard.remove(); 
+                    updatePacketNumbers(); 
+                    calculateTotalQuestions(); 
+                } else {
+                    showMessage("Minimal harus ada 1 paket soal!", true);
+                }
+            });
+            
+            packetsContainer.appendChild(clone);
+            updatePacketNumbers();
+            return packetCard;
+        }
+
+        function updatePacketNumbers() {
+            document.querySelectorAll('.packet-card').forEach((card, index) => { 
+                card.querySelector('.packet-number').textContent = (index + 1).toString().padStart(2, '0'); 
+            });
+        }
+
+        window.addEventListener('DOMContentLoaded', addPacket);
+        addPacketBtn.addEventListener('click', addPacket);
+
+        function parseInputMateri(rawText) {
+            if (!rawText || !rawText.trim()) return [];
+            const lines = rawText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+            const results = [];
+            let currentBab = "";
+            let currentSubbab = [];
+
+            for (const line of lines) {
+                const cleanLine = line.replace(/^[0-9]+[\.\)]\s*/, '').replace(/^[-*•]\s*/, '').trim();
+                const isBabIndicator = /^(bab\s*\d+|bab\b|materi\s*\d+|tema\s*\d+)/i.test(line) || (!line.startsWith('-') && !line.startsWith('*') && !line.startsWith('•') && currentBab === "");
+
+                if (isBabIndicator) {
+                    if (currentBab) {
+                        results.push({ bab: currentBab, subs: currentSubbab.length > 0 ? [...currentSubbab] : ["—"] });
+                    }
+                    currentBab = cleanLine;
+                    currentSubbab = [];
+                } else {
+                    currentSubbab.push(cleanLine);
+                }
+            }
+
+            if (currentBab) {
+                results.push({ bab: currentBab, subs: currentSubbab.length > 0 ? [...currentSubbab] : ["—"] });
+            } else if (lines.length > 0) {
+                results.push({ bab: lines[0], subs: lines.slice(1).length > 0 ? lines.slice(1) : ["—"] });
+            }
+            return results;
+        }
+
+        function buildAutomaticAssessment(rawMateri, totalQuestions) {
+            const parsedMateri = parseInputMateri(rawMateri);
+            const numQ = Math.max(1, parseInt(totalQuestions) || 25);
+            
+            // Siapkan butir soal nomor 1 sampai numQ secara berurutan sesuai pemetaan tetap
+            const questionItems = [];
+            for (let i = 1; i <= numQ; i++) {
+                if (i <= 25) {
+                    questionItems.push({
+                        no: i,
+                        type: FIXED_MAPPING_25[i].type,
+                        level: FIXED_MAPPING_25[i].level,
+                        formType: FIXED_MAPPING_25[i].formType
+                    });
+                } else {
+                    const mapItem = FIXED_MAPPING_25[((i - 1) % 25) + 1];
+                    questionItems.push({
+                        no: i,
+                        type: mapItem.type,
+                        level: mapItem.level,
+                        formType: mapItem.formType
+                    });
+                }
+            }
+
+            // Flattens daftar materi bab & subbab/TP
+            let targets = [];
+            if (parsedMateri.length === 0) {
+                targets.push({ bab: "Materi Pokok 1", sub: "—" });
+            } else {
+                parsedMateri.forEach(m => {
+                    m.subs.forEach(s => {
+                        targets.push({ bab: m.bab, sub: s });
+                    });
+                });
+            }
+
+            // Target butir per paket (rata-rata 3 - 5 butir soal per stimulus agar seimbang)
+            const targetPerPacket = Math.max(3, Math.min(5, Math.ceil(numQ / Math.max(targets.length, 1))));
+            
+            const packets = [];
+            let currentPacketItems = [];
+            let targetIdx = 0;
+
+            // Alokasikan butir soal nomor 1, 2, 3... secara berurutan tanpa loncat
+            questionItems.forEach((item, index) => {
+                // Periksa apakah penambahan butir soal ini memicu konflik:
+                // 1. Jenis soal sama tetapi tingkat kesulitan berbeda di dalam paket yang sama
+                const conflict = currentPacketItems.find(it => it.formType === item.formType && it.level !== item.level);
+                
+                // 2. Batas ukuran paket tercapai (agar soal tidak menumpuk di 1 paket)
+                const packetFull = currentPacketItems.length >= targetPerPacket;
+
+                // Jika ada konflik atau ukuran paket sudah terpenuhi dan paket belum kosong, kunci paket dan buat paket baru
+                if ((conflict || packetFull) && currentPacketItems.length > 0) {
+                    const t = targets[targetIdx % targets.length];
+                    packets.push({
+                        packetNumber: packets.length + 1,
+                        bab: t.bab,
+                        sub: t.sub,
+                        stimulusDesc: "",
+                        useGambar: false,
+                        gayaGambar: "Berwarna",
+                        jumlahParagraf: "2",
+                        items: [...currentPacketItems]
+                    });
+                    currentPacketItems = [];
+                    targetIdx++;
+                }
+
+                currentPacketItems.push(item);
+            });
+
+            // Masukkan sisa butir soal terakhir
+            if (currentPacketItems.length > 0) {
+                const t = targets[targetIdx % targets.length];
+                packets.push({
+                    packetNumber: packets.length + 1,
+                    bab: t.bab,
+                    sub: t.sub,
+                    stimulusDesc: "",
+                    useGambar: false,
+                    gayaGambar: "Berwarna",
+                    jumlahParagraf: "2",
+                    items: [...currentPacketItems]
+                });
+            }
+
+            // Tetapkan nomor paket & spesifikasi stimulus berurutan
+            packets.forEach((p, idx) => {
+                p.packetNumber = idx + 1;
+                const minNo = Math.min(...p.items.map(it => it.no));
+                const maxNo = Math.max(...p.items.map(it => it.no));
+                const rangeText = minNo === maxNo ? `nomor ${minNo}` : `nomor ${minNo}–${maxNo}`;
+
+                // Variasi stimulus (paragraf / gambar) berurutan
+                const hasVisualNeed = p.items.some(it => it.formType === "Menjodohkan" || it.level === "Sulit") && (idx % 2 === 1);
+                const topicWord = p.sub !== "—" ? p.sub : p.bab;
+
+                if (hasVisualNeed) {
+                    p.useGambar = true;
+                    p.gayaGambar = "Hitam Putih";
+                    p.stimulusDesc = `Gambar (1) ilustrasi/diagram kontekstual ${topicWord} untuk ${rangeText}`;
+                } else {
+                    const paragrafNum = Math.min(3, Math.max(1, Math.ceil(p.items.length / 2)));
+                    p.useGambar = false;
+                    p.jumlahParagraf = paragrafNum.toString();
+                    p.stimulusDesc = `Paragraf (${paragrafNum}) teks bacaan kontekstual ${topicWord} untuk ${rangeText}`;
+                }
+            });
+
+            return packets;
+        }
+
+        document.getElementById('btn-run-autofill').addEventListener('click', () => {
+            const rawMateri = document.getElementById('auto-input-materi').value;
+            const jumlahSoal = parseInt(document.getElementById('auto-input-jumlah').value) || 25;
+
+            const packets = buildAutomaticAssessment(rawMateri, jumlahSoal);
+            if (!packets || packets.length === 0) {
+                showMessage("Gagal mengolah input materi. Silakan periksa kembali teks materi.", true);
+                return;
+            }
+
+            // Kosongkan kartu paket yang ada
+            packetsContainer.innerHTML = '';
+
+            // Buat kartu paket soal otomatis berurutan
+            packets.forEach(p => {
+                const card = addPacket();
+                card.querySelector('[name="materi"]').value = p.bab;
+                card.querySelector('[name="tujuan"]').value = p.sub !== "—" ? p.sub : "";
+                
+                const stimulusModeSelect = card.querySelector('.stimulus-mode-select');
+                stimulusModeSelect.value = "dengan";
+                stimulusModeSelect.dispatchEvent(new Event('change'));
+
+                const gambarCheck = card.querySelector('.stimulus-gambar-check');
+                gambarCheck.checked = p.useGambar;
+                gambarCheck.dispatchEvent(new Event('change'));
+
+                card.querySelector('.gaya-gambar-select').value = p.gayaGambar;
+                card.querySelector('.jumlah-paragraf-select').value = p.jumlahParagraf;
+
+                // Kelompokkan butir soal per formType dalam paket ini (semuanya berurutan)
+                const groupedByType = {};
+                p.items.forEach(it => {
+                    if (!groupedByType[it.formType]) {
+                        groupedByType[it.formType] = {
+                            level: it.level,
+                            numbers: []
+                        };
+                    }
+                    groupedByType[it.formType].numbers.push(it.no);
+                });
+
+                // Terapkan ke checkbox dan input kartu
+                Object.keys(groupedByType).forEach(formType => {
+                    const checkBtn = Array.from(card.querySelectorAll('.soal-check')).find(c => c.value === formType);
+                    if (checkBtn) {
+                        checkBtn.checked = true;
+                        const row = checkBtn.closest('div');
+                        const levelSelect = row.querySelector('.soal-level');
+                        const noInput = row.querySelector('.soal-nomor');
+
+                        levelSelect.disabled = false;
+                        levelSelect.value = groupedByType[formType].level;
+                        noInput.disabled = false;
+                        noInput.value = groupedByType[formType].numbers.join(', ');
+                    }
+                });
+            });
+
+            calculateTotalQuestions();
+            renderRecommendationTable(packets, jumlahSoal);
+            showMessage(`Berhasil membuat ${packets.length} paket soal berurutan tanpa loncat!`);
+        });
+
+        function renderRecommendationTable(packets, totalSoal) {
+            const tableContainer = document.getElementById('auto-table-preview-container');
+            const tbody = document.getElementById('recommendation-tbody');
+            tbody.innerHTML = '';
+
+            packets.forEach(p => {
+                // Kelompokkan per karakteristik identik
+                const groups = {};
+                p.items.forEach(item => {
+                    const key = `${item.type}_${item.level}`;
+                    if (!groups[key]) {
+                        groups[key] = {
+                            type: item.type,
+                            level: item.level,
+                            numbers: []
+                        };
+                    }
+                    groups[key].numbers.push(item.no);
+                });
+
+                Object.values(groups).forEach(g => {
+                    const tr = document.createElement('tr');
+                    tr.className = "hover:bg-slate-800/60 transition";
+                    tr.innerHTML = `
+                        <td class="p-2 border-b border-slate-800 text-indigo-400 font-semibold whitespace-nowrap">Paket ${p.packetNumber}</td>
+                        <td class="p-2 border-b border-slate-800 font-sans">${p.bab}</td>
+                        <td class="p-2 border-b border-slate-800 font-sans text-slate-300">${p.sub}</td>
+                        <td class="p-2 border-b border-slate-800 text-indigo-200">${g.type}</td>
+                        <td class="p-2 border-b border-slate-800"><span class="px-1.5 py-0.5 rounded text-[10px] ${g.level === 'Mudah' ? 'bg-emerald-900/60 text-emerald-300' : g.level === 'Sedang' ? 'bg-amber-900/60 text-amber-300' : 'bg-rose-900/60 text-rose-300'}">${g.level}</span></td>
+                        <td class="p-2 border-b border-slate-800 font-bold text-white">${g.numbers.join(', ')}</td>
+                        <td class="p-2 border-b border-slate-800 font-sans text-slate-400">${p.stimulusDesc}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            });
+
+            tableContainer.classList.remove('hidden');
+        }
+
+        document.getElementById('btn-toggle-table').addEventListener('click', () => {
+            const container = document.getElementById('auto-table-preview-container');
+            container.classList.toggle('hidden');
+            document.getElementById('btn-toggle-table').textContent = container.classList.contains('hidden') ? 'Buka Pratinjau' : 'Tutup Pratinjau';
+        });
+
+        document.getElementById('btn-export-json').addEventListener('click', () => {
+            const data = { 
+                mapel: document.getElementById('mapel').value, 
+                kelas: document.getElementById('kelas').value, 
+                tingkatan: document.getElementById('tingkatan').value, 
+                packets: [] 
+            };
+            document.querySelectorAll('.packet-card').forEach(card => {
+                const soalDetails = [];
+                card.querySelectorAll('.soal-check:checked').forEach(c => {
+                    const row = c.closest('div');
+                    soalDetails.push({ 
+                        jenis: c.value, 
+                        nomor: row.querySelector('.soal-nomor').value, 
+                        level: row.querySelector('.soal-level').value 
+                    });
+                });
+                data.packets.push({ 
+                    materi: card.querySelector('[name="materi"]').value, 
+                    tujuan: card.querySelector('[name="tujuan"]').value, 
+                    stimulusMode: card.querySelector('.stimulus-mode-select').value,
+                    useGambar: card.querySelector('.stimulus-gambar-check').checked, 
+                    gaya: card.querySelector('.gaya-gambar-select').value, 
+                    jumlahParagraf: card.querySelector('.jumlah-paragraf-select').value, 
+                    soalDetails 
+                });
+            });
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const a = document.createElement('a'); 
+            a.href = URL.createObjectURL(blob); 
+            a.download = 'data_soal_zainul.json'; 
+            a.click();
+            URL.revokeObjectURL(a.href);
+        });
+
+        document.getElementById('btn-import-json').addEventListener('click', () => document.getElementById('json-input').click());
+        document.getElementById('json-input').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                try {
+                    const data = JSON.parse(event.target.result);
+                    document.getElementById('mapel').value = data.mapel || ''; 
+                    document.getElementById('kelas').value = data.kelas || ''; 
+                    document.getElementById('tingkatan').value = data.tingkatan || 'SMP / Menengah Rendah';
+                    packetsContainer.innerHTML = '';
+                    if (Array.isArray(data.packets)) {
+                        data.packets.forEach(p => {
+                            const card = addPacket();
+                            card.querySelector('[name="materi"]').value = p.materi || ''; 
+                            card.querySelector('[name="tujuan"]').value = p.tujuan || '';
+                            
+                            const modeSelect = card.querySelector('.stimulus-mode-select');
+                            modeSelect.value = p.stimulusMode || 'dengan';
+                            modeSelect.dispatchEvent(new Event('change'));
+
+                            card.querySelector('.jumlah-paragraf-select').value = p.jumlahParagraf || "1";
+                            
+                            const cb = card.querySelector('.stimulus-gambar-check');
+                            cb.checked = !!p.useGambar;
+                            cb.dispatchEvent(new Event('change'));
+                            
+                            card.querySelector('.gaya-gambar-select').value = p.gaya || "Berwarna";
+                            
+                            if (Array.isArray(p.soalDetails)) {
+                                p.soalDetails.forEach(sd => {
+                                    const checkBtn = Array.from(card.querySelectorAll('.soal-check')).find(c => c.value === sd.jenis);
+                                    if(checkBtn) { 
+                                        checkBtn.checked = true; 
+                                        const row = checkBtn.closest('div'); 
+                                        row.querySelector('.soal-level').disabled = false; 
+                                        row.querySelector('.soal-level').value = sd.level || 'Sedang'; 
+                                        row.querySelector('.soal-nomor').disabled = false; 
+                                        row.querySelector('.soal-nomor').value = sd.nomor || ''; 
+                                    }
+                                });
+                            }
+                        });
+                    }
+                    calculateTotalQuestions();
+                    showMessage("Data berhasil diimpor!");
+                } catch(err) {
+                    showMessage("Format JSON tidak valid!", true);
+                }
+            };
+            reader.readAsText(file);
+            e.target.value = '';
+        });
+
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const mapel = document.getElementById('mapel').value || "(Belum ditentukan)";
+            const kelas = document.getElementById('kelas').value || "(Belum ditentukan)";
+            const tingkatan = document.getElementById('tingkatan').value;
+            const kelengkapan = Array.from(document.querySelectorAll('input[name="kelengkapan_soal"]:checked')).map(c => c.value);
+            
+            let p = `Anda adalah ahli pengembang instrumen asesmen pembelajaran standar Kurikulum Merdeka di Indonesia. Sila buatkan satu set penilaian lengkap untuk:\n\n`;
+            p += `--- INFORMASI UMUM ---\nMata Pelajaran: ${mapel}\nKelas: ${kelas}\nTingkatan: ${tingkatan}\nTotal Keseluruhan Soal: ${totalQuestionsDisplay.value} Butir\n\n--- RANCANGAN KONTEN PER PAKET ---\n`;
+            
+            let validPackets = 0;
+            document.querySelectorAll('.packet-card').forEach((card, index) => {
+                const materi = card.querySelector('[name="materi"]').value || `Materi ${index + 1}`;
+                const tujuan = card.querySelector('[name="tujuan"]').value || `Tujuan pembelajaran paket ${index + 1}`;
+                const stimulusMode = card.querySelector('.stimulus-mode-select').value;
+                const useGambar = card.querySelector('.stimulus-gambar-check').checked;
+                const gaya = card.querySelector('.gaya-gambar-select').value;
+                const jumlahParagraf = card.querySelector('.jumlah-paragraf-select').value;
+                
+                const soalChecked = card.querySelectorAll('.soal-check:checked');
+                if(soalChecked.length === 0) return;
+                validPackets++;
+
+                const nomorList = [];
+                soalChecked.forEach(c => {
+                    const row = c.closest('div');
+                    const noVal = row.querySelector('.soal-nomor').value.trim();
+                    if(noVal) nomorList.push(noVal);
+                });
+                const rentangNomor = nomorList.length > 0 ? nomorList.join(', ') : 'terkait';
+
+                p += `\n[PAKET ${String(validPackets).padStart(2, '0')}]\n`;
+                p += `Materi: ${materi}\nTujuan: ${tujuan}\n`;
+                
+                if (stimulusMode === 'dengan') {
+                    if (useGambar) {
+                        let gayaText = gaya === 'Berwarna' ? 'berwarna yang profesional dan tajam' : 'hitam putih (line art) beresolusi dan kontras tinggi agar tidak buram saat difotokopi';
+                        p += `WAJIB CANTUMKAN KALIMAT PERINTAH STIMULUS GAMBAR DI ATAS GAMBAR:
+Format wajib: "Cermati gambar/diagram/infografis berikut untuk menjawab soal nomor ${rentangNomor}!"
+
+Buatlah deskripsi/instruksi gambar yang detail bergaya ${gayaText}. Gambar ini WAJIB menjadi inti masalah. Soal-soal di bawah ini TIDAK BOLEH bisa dijawab hanya dengan membaca teks/teori, melainkan siswa wajib mengobservasi detail visual tersebut.\n`;
+                    } else {
+                        p += `WAJIB CANTUMKAN KALIMAT PERINTAH BACAAN DI ATAS TEKS:
+Format wajib: "Bacalah artikel di bawah ini secara saksama untuk menjawab soal nomor ${rentangNomor}!"
+
+Buatlah teks bacaan/paragraf yang mendalam sebanyak TEPAT ${jumlahParagraf} paragraf. Teks ini harus sangat relevan dengan materi dan tujuan, serta wajib menjadi dasar analisis. Soal-soal di bawah ini tidak boleh bisa dijawab hanya dengan ingatan teori, melainkan siswa wajib menyimpulkan dari teks bacaan ini.\n`;
+                    }
+                    p += `Buat butir soal berdasarkan stimulus di atas:\n`;
+                } else {
+                    p += `Ketentuan: Paket soal ini dibuat TANPA STIMULUS (langsung ke butir pertanyaan tanpa teks bacaan ataupun gambar). Buatlah soal langsung berdasarkan materi dan tujuan di atas:\n`;
+                }
+                
+                soalChecked.forEach(c => {
+                    const row = c.closest('div');
+                    const level = row.querySelector('.soal-level').value;
+                    const nomor = row.querySelector('.soal-nomor').value || '-';
+                    let rule = "";
+                    if (c.value === "Benar-Salah") rule = " (Wajib 3 pernyataan, sajikan dalam tabel dengan kolom No, Pernyataan, B, S)";
+                    if (c.value === "Menjodohkan") rule = " (Wajib menyajikan tepat 4 pernyataan bernomor 1, 2, 3, 4 di kolom kiri dan 5 pilihan jawaban A, B, C, D, E di kolom kanan dengan 1 jawaban sebagai pengecoh)";
+                    if (c.value === "PG Kompleks") rule = " (PENTING: Pilihan jawaban WAJIB menggunakan format kurung siku [A], [B], [C], [D] untuk membedakannya secara visual dari Pilihan Ganda biasa, dengan instruksi memilih lebih dari satu jawaban benar, contoh: 'Pilihlah dua atau tiga jawaban yang benar!')";
+                    if (c.value === "Uraian Pendek") rule = " (PENTING: Jawaban harus terbatas maksimal 2 kata)";
+                    p += `- ${c.value} [${level}]: Nomor ${nomor}${rule}\n`;
+                });
+            });
+
+            p += `\n--- KETENTUAN OUTPUT & STRUKTUR PENYAJIAN SOAL ---\n`;
+            p += `Sangat Penting: Mohon sajikan hasil draf soal persis mengikuti pola struktur contoh di bawah ini:
+
+CONTOH STRUKTUR DAN TATA LETAK PENYAJIAN SOAL:
+---------------------------------------------------------------------------------
+Bacalah artikel di bawah ini secara saksama untuk menjawab soal nomor 1!
+[Isi Teks Paragraf Stimulus Paket 1...]
+
+1. [Pertanyaan Pilihan Ganda Tunggal berdasarkan stimulus]
+A. [Pilihan A]
+B. [Pilihan B]
+C. [Pilihan C]
+D. [Pilihan D]
+
+Bacalah artikel di bawah ini secara saksama untuk menjawab soal nomor 2!
+[Isi Teks Paragraf Stimulus Paket 2...]
+
+2. [Pertanyaan Pilihan Ganda Kompleks - Wajib berikan instruksi memilih lebih dari satu opsi benar]
+[A] [Pilihan A]
+[B] [Pilihan B]
+[C] [Pilihan C]
+[D] [Pilihan D]
+
+Bacalah artikel di bawah ini secara saksama untuk menjawab soal nomor 3, dan 4!
+[Isi Teks Paragraf Stimulus yang menaungi nomor 3 dan 4...]
+
+3. Berdasarkan teks di atas, tentukan apakah pernyataan-pernyataan berikut bernilai Benar (B) atau Salah (S)!
+| No | Pernyataan | B | S |
+| 1 | [Pernyataan 1] | | |
+| 2 | [Pernyataan 2] | | |
+| 3 | [Pernyataan 3] | | |
+
+4. Jodohkan pernyataan berikut dengan pilihan jawaban yang tersedia di sebelah kanan!
+| No | Pernyataan | Pilihan Jawaban |
+| 1 | [Pernyataan 1] | A. [Opsi Jawaban A] |
+| 2 | [Pernyataan 2] | B. [Opsi Jawaban B] |
+| 3 | [Pernyataan 3] | C. [Opsi Jawaban C] |
+| 4 | [Pernyataan 4] | D. [Opsi Jawaban D] |
+| | | E. [Opsi Jawaban Pengecoh] |
+---------------------------------------------------------------------------------
+
+ATURAN WAJIB DRAF UTAMA:
+1. Setiap paket hanya mencantumkan 1 stimulus utama yang diawali dengan kalimat pengantar baku: "Bacalah artikel di bawah ini secara saksama untuk menjawab soal nomor [X]!" atau "Cermati gambar/diagram berikut untuk menjawab soal nomor [X]!".
+2. DILARANG mencantumkan label teknis seperti "Paket 01", "Jenis Soal: Pilihan Ganda Kompleks", atau "[Sedang]" pada draf naskah soal siswa. Tulis langsung nomor dan butir pertanyaannya.
+3. KHUSUS Pilihan Ganda Kompleks (PG Kompleks): Wajib menggunakan label opsi kurung siku [A], [B], [C], [D] untuk membedakannya secara visual dari Pilihan Ganda biasa (yang memakai A., B., C., D.), serta wajib cantumkan instruksi jelas kepada siswa untuk memilih lebih dari satu jawaban yang benar (contoh: "Pilihlah dua atau tiga jawaban yang benar!"). DILARANG menggunakan format A., B., C., D. biasa untuk PG Kompleks.
+4. LARANGAN MEMBUAT SELURUH SOAL DALAM TABEL (SANGAT PENTING):
+   - DILARANG KERAS membungkus seluruh naskah atau butir soal lain (Pilihan Ganda, PG Kompleks, Uraian Pendek, Uraian Panjang) ke dalam tabel.
+   - Pilihan Ganda, PG Kompleks, dan Uraian WAJIB disajikan sebagai teks biasa (paragraf/daftar baris baru lepas tanpa karakter pipe "|").
+   - Format tabel (| ... |) HANYA dan EKSKLUSIF digunakan untuk butir soal Benar-Salah dan Menjodohkan saja.
+   - Setelah tabel Benar-Salah atau Menjodohkan selesai, WAJIB beri jarak dua baris kosong baru agar tabel tertutup sempurna dan tidak menyeret nomor soal berikutnya ke dalam tabel.
+5. Untuk soal Benar-Salah, sajikan dalam format tabel dengan kolom No, Pernyataan, B, dan S (tepat 3 pernyataan).
+6. Untuk soal Menjodohkan, sajikan dalam format tabel 2-kolom yang WAJIB terdiri atas tepat 4 baris pernyataan bernomor (1, 2, 3, 4) di sisi kiri dan tepat 5 pilihan jawaban (A, B, C, D, E) di sisi kanan, di mana salah satu opsi jawaban berfungsi sebagai pengecoh.
+7. ATURAN PENTING FORMAT FONT (MENCEGAH TEKS MENJADI TEBAL/BOLD SEMUA):
+   - JANGAN menggunakan sintaks Markdown tebal (**...**) pada kalimat stimulus, teks bacaan, butir pertanyaan soal, maupun opsi pilihan jawaban (A, B, C, D atau [A], [B], [C], [D]).
+   - Semua teks soal WAJIB disajikan sebagai teks polos/biasa (normal regular font) agar saat disalin ke Microsoft Word teks tidak berubah menjadi huruf tebal semua.
+   - Penebalan huruf hanya diperbolehkan secara selektif untuk header tabel (misal: | No | Pernyataan | B | S |) atau judul kelengkapan lampiran jika diperlukan.
+8. ATURAN PENOMORAN MANUAL MURNI (DILARANG MENGGUNAKAN AUTO-NUMBERING / ORDERED LIST):
+   - Gunakan penomoran manual murni berupa teks biasa tanpa memicu format daftar otomatis (ordered list / auto-numbering).
+   - Tulis nomor soal dan pilihan jawaban langsung sebagai teks biasa (contoh teks biasa tanpa spasi tab otomatis: "1. Teks soal...", lalu baris baru "A. Teks pilihan...", dst.).
+   - Hal ini SANGAT PENTING agar saat disalin ke Microsoft Word, nomor dan abjad opsi TIDAK otomatis terkonversi menjadi fitur "Numbering" Word yang dapat mengacaukan spasi dan perataan inden paragraf.
+\n`;
+            
+            if (kelengkapan.length > 0) {
+                p += `2. KELENGKAPAN TAMBAHAN (Sajikan setelah seluruh kumpulan soal selesai):\n`;
+                if (kelengkapan.includes("Kisi-Kisi")) p += `- Tabel Kisi-kisi asesmen lengkap sesuai kaidah Kurikulum Merdeka.\n`;
+                if (kelengkapan.includes("Kunci dan Skor Jawaban")) p += `- Kunci jawaban dan pedoman penskoran/rubrik penilaian.\n`;
+                if (kelengkapan.includes("Materi Esensial")) p += `- Rangkuman materi esensial.\n`;
+                if (kelengkapan.includes("Telaah Soal")) p += `- Lembar telaah butir soal.\n`;
+            }
+
+            promptOutput.textContent = p;
+            outputSection.classList.remove('hidden');
+            outputSection.scrollIntoView({ behavior: 'smooth' });
+        });
+
+        copyButton.addEventListener('click', () => {
+            const textToCopy = promptOutput.textContent;
+            if (!textToCopy) return;
+
+            const textarea = document.createElement('textarea');
+            textarea.value = textToCopy;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            
+            const originalText = copyButton.textContent;
+            copyButton.textContent = 'Berhasil Disalin! ✓';
+            setTimeout(() => {
+                copyButton.textContent = originalText;
+            }, 2000);
+        });
+    </script>
+</body>
+</html>

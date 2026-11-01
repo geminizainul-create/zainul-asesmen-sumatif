@@ -1,0 +1,1915 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AutoFormat Soal Ujian - Pembuat Dokumen Ujian Standar F4 Siap Cetak</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0f5ff',
+              100: '#e0ecff',
+              500: '#1d4ed8',
+              600: '#1e40af',
+              700: '#1d3557',
+              800: '#0f172a',
+              900: '#0b1329'
+            }
+          },
+          fontFamily: {
+            tnr: ['"Times New Roman"', 'Times', 'serif'],
+            sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif']
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- DOCX.js official CDN for direct Word .docx creation in browser -->
+  <script src="https://unpkg.com/docx@8.5.0/build/index.js"></script>
+  <!-- FileSaver.js for reliable cross-browser download -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+
+  <style>
+    /* Print styling strictly for F4 Paper (210mm x 330mm) */
+    @page {
+      size: 210mm 330mm;
+      margin: 20mm 20mm 20mm 25mm; /* top, right, bottom, left */
+    }
+    @media print {
+      body * {
+        visibility: hidden;
+      }
+      #print-area, #print-area * {
+        visibility: visible;
+      }
+      #print-area {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        margin: 0;
+        padding: 0;
+        background: white !important;
+      }
+      .no-print {
+        display: none !important;
+      }
+    }
+
+    /* Custom scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+
+    /* F4 Paper aspect ratio: 210 / 330 = 0.63636 */
+    .f4-sheet {
+      width: 100%;
+      max-width: 680px;
+      min-height: 960px;
+      background: white;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+      margin: 0 auto;
+      padding: 38px 38px 38px 48px; /* Proportional to 2cm, 2cm, 2cm, 2.5cm */
+      font-family: "Times New Roman", Times, serif;
+      color: #000;
+      line-height: 1.15;
+    }
+
+    .f4-preview-scale {
+      transform-origin: top center;
+      transition: transform 0.2s ease;
+    }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 font-sans antialiased min-h-screen flex flex-col">
+
+  <!-- Header App -->
+  <header class="bg-brand-900 text-white shadow-md sticky top-0 z-40 border-b border-brand-800">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-lg bg-blue-600 flex items-center justify-center text-white shadow-inner font-bold text-xl">
+          <i data-lucide="file-check-2" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <h1 class="font-bold text-lg leading-tight tracking-tight flex items-center gap-2">
+            AutoFormat Soal Ujian
+            <span class="text-[10px] font-semibold bg-blue-500/30 text-blue-300 border border-blue-400/30 px-2 py-0.5 rounded-full">F4 Ready (210×330mm)</span>
+          </h1>
+          <p class="text-xs text-slate-300">Konversi Soal AI (ChatGPT, Gemini, DeepSeek) ke Word Resmi Siap Cetak</p>
+        </div>
+      </div>
+      
+      <div class="flex items-center space-x-2">
+        <button id="btn-load-sample" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 px-3 py-2 rounded-md flex items-center gap-1.5 transition">
+          <i data-lucide="sparkles" class="w-4 h-4 text-amber-400"></i>
+          <span>Muat Contoh Lengkap</span>
+        </button>
+        <button id="btn-quick-guide" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 px-3 py-2 rounded-md flex items-center gap-1.5 transition">
+          <i data-lucide="help-circle" class="w-4 h-4 text-blue-400"></i>
+          <span>Panduan Standar</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+    
+    <!-- LEFT PANEL: Configuration & Input (7 Cols) -->
+    <section class="lg:col-span-7 flex flex-col space-y-5">
+      
+      <!-- Accordion / Tabs container -->
+      <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        
+        <!-- STEP 1: Kop Surat & Identitas -->
+        <div class="border-b border-slate-200">
+          <div class="bg-slate-50 px-4 py-3 flex items-center justify-between cursor-pointer select-none" id="header-step1">
+            <div class="flex items-center gap-2.5">
+              <span class="w-6 h-6 rounded-full bg-brand-600 text-white text-xs font-bold flex items-center justify-center">1</span>
+              <h2 class="font-semibold text-slate-900 text-sm sm:text-base">Kop Surat & Identitas Ujian</h2>
+            </div>
+            <i data-lucide="chevron-down" id="icon-step1" class="w-5 h-5 text-slate-400 transition-transform duration-200"></i>
+          </div>
+
+          <div id="body-step1" class="p-4 space-y-4">
+            <!-- Kop Upload -->
+            <div class="p-3.5 bg-slate-50 rounded-lg border border-dashed border-slate-300">
+              <label class="block text-xs font-semibold text-slate-700 mb-1.5">Unggah Gambar Kop Surat Sekolah / Lembaga</label>
+              <div class="flex flex-wrap items-center gap-3">
+                <input type="file" id="input-kop" accept="image/png, image/jpeg, image/jpg" class="text-xs file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-brand-50 file:text-brand-600 hover:file:bg-brand-100 cursor-pointer">
+                
+                <div class="flex items-center gap-2 ml-auto">
+                  <label class="text-xs text-slate-600 font-medium">Lebar Kop:</label>
+                  <select id="select-kop-width" class="text-xs border border-slate-300 rounded px-2 py-1 bg-white">
+                    <option value="100">100% Margin Cetak</option>
+                    <option value="90">90% Rata Tengah</option>
+                    <option value="80">80% Rata Tengah</option>
+                  </select>
+                  <button id="btn-remove-kop" title="Hapus Kop" class="text-xs text-rose-600 hover:text-rose-700 hidden px-2 py-1 bg-rose-50 rounded border border-rose-200">
+                    Hapus
+                  </button>
+                </div>
+              </div>
+              <div id="kop-preview-container" class="mt-2.5 hidden bg-white p-2 border border-slate-200 rounded text-center">
+                <img id="kop-preview-img" src="" alt="Pratinjau Kop Surat" class="max-h-24 mx-auto object-contain">
+              </div>
+            </div>
+
+            <!-- Identity Form -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+              <div>
+                <label class="font-medium text-slate-700">Jenis Ujian</label>
+                <input type="text" id="id-jenis-ujian" value="Sumatif Akhir Semester (SAS)" class="w-full mt-1 border border-slate-300 rounded-md p-2 focus:ring-1 focus:ring-brand-500 focus:border-brand-500">
+              </div>
+              <div>
+                <label class="font-medium text-slate-700">Mata Pelajaran</label>
+                <input type="text" id="id-mapel" value="Ilmu Pengetahuan Alam (IPA)" class="w-full mt-1 border border-slate-300 rounded-md p-2 focus:ring-1 focus:ring-brand-500 focus:border-brand-500">
+              </div>
+              <div>
+                <label class="font-medium text-slate-700">Kelas / Fase</label>
+                <input type="text" id="id-kelas" value="IX (Sembilan) / Fase D" class="w-full mt-1 border border-slate-300 rounded-md p-2 focus:ring-1 focus:ring-brand-500 focus:border-brand-500">
+              </div>
+              <div>
+                <label class="font-medium text-slate-700">Semester</label>
+                <input type="text" id="id-semester" value="Ganjil" class="w-full mt-1 border border-slate-300 rounded-md p-2 focus:ring-1 focus:ring-brand-500 focus:border-brand-500">
+              </div>
+              <div>
+                <label class="font-medium text-slate-700">Tahun Pelajaran</label>
+                <input type="text" id="id-tapel" value="2026/2027" class="w-full mt-1 border border-slate-300 rounded-md p-2 focus:ring-1 focus:ring-brand-500 focus:border-brand-500">
+              </div>
+              <div>
+                <label class="font-medium text-slate-700">Alokasi Waktu</label>
+                <input type="text" id="id-waktu" value="90 Menit" class="w-full mt-1 border border-slate-300 rounded-md p-2 focus:ring-1 focus:ring-brand-500 focus:border-brand-500">
+              </div>
+              <div class="sm:col-span-2">
+                <label class="font-medium text-slate-700">Petunjuk Umum / Pengerjaan (Opsional)</label>
+                <input type="text" id="id-petunjuk" value="Pilihlah salah satu jawaban yang paling tepat dengan memberi tanda silang (X) pada huruf A, B, C, atau D!" class="w-full mt-1 border border-slate-300 rounded-md p-2 focus:ring-1 focus:ring-brand-500 focus:border-brand-500">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- STEP 2: Raw AI Prompt & Parser Editor -->
+        <div class="p-4 space-y-3">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="w-6 h-6 rounded-full bg-brand-600 text-white text-xs font-bold flex items-center justify-center">2</span>
+              <h2 class="font-semibold text-slate-900 text-sm sm:text-base">Tempel Teks Soal dari AI</h2>
+            </div>
+            
+            <div class="flex items-center gap-1.5 text-xs">
+              <span id="char-counter" class="text-slate-400 font-mono">0 karakter</span>
+              <span class="text-slate-300">|</span>
+              <span id="detected-counter" class="text-emerald-700 font-medium bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">0 Soal Terdeteksi</span>
+            </div>
+          </div>
+
+          <!-- Action bar for raw text -->
+          <div class="flex flex-wrap items-center justify-between gap-2 bg-slate-50 p-2 rounded-lg border border-slate-200">
+            <div class="flex items-center gap-1.5">
+              <button id="btn-paste-clipboard" class="px-2.5 py-1.5 bg-white hover:bg-slate-100 border border-slate-300 rounded text-xs font-medium text-slate-700 flex items-center gap-1 transition">
+                <i data-lucide="clipboard" class="w-3.5 h-3.5 text-slate-500"></i>
+                <span>Tempel</span>
+              </button>
+              <button id="btn-clear-text" class="px-2.5 py-1.5 bg-white hover:bg-rose-50 border border-slate-300 hover:border-rose-300 rounded text-xs font-medium text-rose-600 flex items-center gap-1 transition">
+                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                <span>Hapus Semua</span>
+              </button>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <span class="text-xs text-slate-500 font-medium">Mode:</span>
+              <div class="inline-flex rounded-md shadow-sm" role="group">
+                <button type="button" id="mode-auto" class="px-2.5 py-1 text-xs font-medium text-white bg-brand-600 border border-brand-600 rounded-l-md hover:bg-brand-700">
+                  Otomatis
+                </button>
+                <button type="button" id="mode-precision" class="px-2.5 py-1 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-r-md hover:bg-slate-50">
+                  Presisi
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Textarea for Question Content -->
+          <div class="relative">
+            <textarea id="raw-soal-input" rows="14" class="w-full p-3 font-mono text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 leading-relaxed" placeholder="Tempel teks soal di sini...
+Contoh:
+Bacalah teks berikut untuk menjawab soal nomor 1-2!
+Fotosintesis adalah proses pembentukan zat makanan oleh tumbuhan hijau.
+
+1. Tempat berlangsungnya fotosintesis pada tumbuhan adalah ...
+A. Stomata
+B. Kloroplas
+C. Xilem
+D. Floem
+
+2. Gas yang diserap dalam proses tersebut adalah ...
+A. Oksigen
+B. Karbon dioksida
+C. Nitrogen
+D. Hidrogen"></textarea>
+          </div>
+
+          <!-- Parse Trigger Action -->
+          <div class="flex flex-wrap items-center justify-between gap-3 pt-1">
+            <div class="flex items-center gap-2 text-xs text-slate-500">
+              <i data-lucide="info" class="w-4 h-4 text-blue-500 flex-shrink-0"></i>
+              <span>Parser mendeteksi otomatis: Pilihan Ganda (A-E), Stimulus, Uraian, dan Tabel Markdown.</span>
+            </div>
+            
+            <button id="btn-parse-and-clean" class="w-full sm:w-auto px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-lg font-semibold text-xs flex items-center justify-center gap-2 shadow-sm transition active:scale-98">
+              <i data-lucide="wand-2" class="w-4 h-4"></i>
+              <span>Parse & Rapikan Format</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- STEP 3: Advanced Options Accordion -->
+        <div class="border-t border-slate-200">
+          <div class="bg-slate-50 px-4 py-2.5 flex items-center justify-between cursor-pointer select-none" id="header-step3">
+            <div class="flex items-center gap-2">
+              <i data-lucide="sliders" class="w-4 h-4 text-slate-500"></i>
+              <span class="font-medium text-slate-700 text-xs">Pengaturan Dokumen Lanjutan (Aturan Standar F4 Terkunci)</span>
+            </div>
+            <i data-lucide="chevron-down" id="icon-step3" class="w-4 h-4 text-slate-400 transition-transform duration-200"></i>
+          </div>
+
+          <div id="body-step3" class="p-4 bg-slate-50/50 space-y-3 hidden text-xs">
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div>
+                <label class="text-slate-600 block mb-1">Ukuran Kertas</label>
+                <input type="text" value="F4 (210 x 330 mm)" disabled class="w-full bg-slate-100 border border-slate-200 rounded px-2 py-1.5 text-slate-500 font-medium">
+              </div>
+              <div>
+                <label class="text-slate-600 block mb-1">Font Dokumen</label>
+                <input type="text" value="Times New Roman 11pt" disabled class="w-full bg-slate-100 border border-slate-200 rounded px-2 py-1.5 text-slate-500 font-medium">
+              </div>
+              <div>
+                <label class="text-slate-600 block mb-1">Jarak Antarsoal</label>
+                <select id="setting-spacing-between" class="w-full border border-slate-300 rounded px-2 py-1.5 bg-white">
+                  <option value="6" selected>Before 6 pt (Standar Resmi)</option>
+                  <option value="4">Before 4 pt (Padat)</option>
+                  <option value="8">Before 8 pt (Renggang)</option>
+                </select>
+              </div>
+              <div>
+                <label class="text-slate-600 block mb-1">Spasi Antarbaris</label>
+                <input type="text" value="Single (1.0)" disabled class="w-full bg-slate-100 border border-slate-200 rounded px-2 py-1.5 text-slate-500 font-medium">
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
+              <div>
+                <label class="text-slate-600 block mb-1">Margin Atas</label>
+                <input type="text" id="margin-top" value="2.0 cm" class="w-full border border-slate-300 rounded px-2 py-1 bg-white">
+              </div>
+              <div>
+                <label class="text-slate-600 block mb-1">Margin Bawah</label>
+                <input type="text" id="margin-bottom" value="2.0 cm" class="w-full border border-slate-300 rounded px-2 py-1 bg-white">
+              </div>
+              <div>
+                <label class="text-slate-600 block mb-1">Margin Kiri</label>
+                <input type="text" id="margin-left" value="2.5 cm" class="w-full border border-slate-300 rounded px-2 py-1 bg-white">
+              </div>
+              <div>
+                <label class="text-slate-600 block mb-1">Margin Kanan</label>
+                <input type="text" id="margin-right" value="2.0 cm" class="w-full border border-slate-300 rounded px-2 py-1 bg-white">
+              </div>
+            </div>
+
+            <div class="flex justify-end pt-1">
+              <button id="btn-reset-settings" class="text-[11px] text-blue-600 hover:text-blue-800 underline">
+                Kembalikan ke Format Standar
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Preflight Audit Checklist Card -->
+      <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+          <div class="flex items-center gap-2">
+            <i data-lucide="shield-check" class="w-5 h-5 text-brand-600"></i>
+            <h3 class="font-semibold text-slate-900 text-sm">Pemeriksaan Otomatis Standar Dokumen Word</h3>
+          </div>
+          <span id="audit-badge" class="px-2 py-0.5 text-[11px] font-semibold bg-emerald-100 text-emerald-800 rounded-full border border-emerald-300 flex items-center gap-1">
+            <i data-lucide="check" class="w-3 h-3"></i> Siap Diekspor
+          </span>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mt-3 text-xs">
+          <div class="flex items-center gap-2 text-slate-700">
+            <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-600 flex-shrink-0"></i>
+            <span>Dimensi Asli F4 (210 × 330 mm)</span>
+          </div>
+          <div class="flex items-center gap-2 text-slate-700">
+            <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-600 flex-shrink-0"></i>
+            <span>Font Times New Roman 11pt</span>
+          </div>
+          <div class="flex items-center gap-2 text-slate-700">
+            <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-600 flex-shrink-0"></i>
+            <span>Spasi Tunggal (Single) 0/0 pt</span>
+          </div>
+          <div class="flex items-center gap-2 text-slate-700">
+            <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-600 flex-shrink-0"></i>
+            <span>Jarak Antarsoal Before 6 pt</span>
+          </div>
+          <div class="flex items-center gap-2 text-slate-700" id="audit-numbering-item">
+            <i data-lucide="check-circle-2" id="audit-numbering-icon" class="w-4 h-4 text-emerald-600 flex-shrink-0"></i>
+            <span id="audit-numbering-text">Urutan Nomor Soal Valid</span>
+          </div>
+          <div class="flex items-center gap-2 text-slate-700" id="audit-options-item">
+            <i data-lucide="check-circle-2" id="audit-options-icon" class="w-4 h-4 text-emerald-600 flex-shrink-0"></i>
+            <span id="audit-options-text">Opsi Jawaban Rapi & Sejajar</span>
+          </div>
+        </div>
+
+        <!-- Warning list container -->
+        <div id="audit-warnings-box" class="mt-3 p-2.5 bg-amber-50 border border-amber-200 rounded text-[11px] text-amber-800 hidden">
+          <div class="font-semibold flex items-center gap-1.5 mb-1">
+            <i data-lucide="alert-triangle" class="w-3.5 h-3.5 text-amber-600"></i>
+            <span>Catatan Struktur yang Perlu Diperhatikan:</span>
+          </div>
+          <ul id="audit-warnings-list" class="list-disc list-inside space-y-0.5"></ul>
+        </div>
+      </div>
+
+      <!-- Action Export Buttons -->
+      <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div class="flex items-center gap-2 w-full sm:w-auto">
+          <button id="btn-export-docx" class="flex-1 sm:flex-initial px-5 py-2.5 bg-brand-700 hover:bg-brand-800 text-white rounded-lg font-semibold text-xs flex items-center justify-center gap-2 shadow transition active:scale-98">
+            <i data-lucide="download" class="w-4 h-4"></i>
+            <span>Unduh Word (.docx F4)</span>
+          </button>
+
+          <button id="btn-print-preview" class="flex-1 sm:flex-initial px-4 py-2.5 bg-slate-800 hover:bg-slate-900 text-white rounded-lg font-semibold text-xs flex items-center justify-center gap-2 shadow transition active:scale-98">
+            <i data-lucide="printer" class="w-4 h-4"></i>
+            <span>Cetak / PDF Langsung</span>
+          </button>
+        </div>
+
+        <button id="btn-copy-formatted" class="w-full sm:w-auto px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium text-xs flex items-center justify-center gap-1.5 border border-slate-200 transition">
+          <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+          <span>Salin Teks Bersih</span>
+        </button>
+      </div>
+
+    </section>
+
+    <!-- RIGHT PANEL: Live F4 Document Preview (5 Cols) -->
+    <section class="lg:col-span-5 flex flex-col space-y-3">
+      
+      <!-- Toolbar Preview -->
+      <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-3 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-semibold text-slate-800 flex items-center gap-1.5">
+            <i data-lucide="eye" class="w-4 h-4 text-brand-600"></i>
+            Pratinjau Kertas F4
+          </span>
+          <span id="page-count-badge" class="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded border border-slate-200">
+            Est. 1 Halaman
+          </span>
+        </div>
+
+        <!-- Zoom controls -->
+        <div class="flex items-center gap-1 text-xs">
+          <button id="zoom-out" title="Perkecil" class="p-1.5 text-slate-600 hover:bg-slate-100 rounded">
+            <i data-lucide="zoom-out" class="w-4 h-4"></i>
+          </button>
+          <span id="zoom-level" class="font-mono text-[11px] w-10 text-center">85%</span>
+          <button id="zoom-in" title="Perbesar" class="p-1.5 text-slate-600 hover:bg-slate-100 rounded">
+            <i data-lucide="zoom-in" class="w-4 h-4"></i>
+          </button>
+          <button id="zoom-reset" title="Reset Ukuran" class="p-1.5 text-slate-600 hover:bg-slate-100 rounded">
+            <i data-lucide="maximize-2" class="w-3.5 h-3.5"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Preview Canvas Wrapper -->
+      <div class="bg-slate-300/80 rounded-xl p-4 overflow-y-auto max-h-[820px] flex justify-center border border-slate-300 shadow-inner">
+        
+        <div id="preview-scaler" class="f4-preview-scale origin-top" style="transform: scale(0.85);">
+          <!-- F4 Paper Canvas (Print and Live View) -->
+          <article id="print-area" class="f4-sheet font-tnr text-[11pt]">
+            
+            <!-- 1. KOP SURAT AREA -->
+            <div id="pv-kop-container" class="text-center pb-2 border-b-2 border-black mb-3 hidden">
+              <img id="pv-kop-img" src="" alt="Kop Surat" class="max-w-full mx-auto max-h-28 object-contain">
+            </div>
+
+            <!-- Fallback Text Kop if image is absent -->
+            <div id="pv-kop-text-fallback" class="text-center pb-2 border-b-2 border-black mb-3">
+              <div class="font-bold text-sm tracking-wide uppercase leading-tight">PEMERINTAH PROVINSI / KABUPATEN</div>
+              <div class="font-bold text-base uppercase leading-tight">DINAS PENDIDIKAN DAN KEBUDAYAAN</div>
+              <div class="font-bold text-lg uppercase leading-tight">SEKOLAH MENENGAH PERTAMA / ATAS</div>
+              <div class="text-[9pt] italic mt-0.5">Jl. Pendidikan No. 123, Telepon (021) 1234567, Pos 12345</div>
+            </div>
+
+            <!-- 2. JUDUL DAN SUB JUDUL UJIAN -->
+            <div class="text-center mb-3">
+              <h2 id="pv-title-jenis-ujian" class="font-bold text-[13pt] uppercase tracking-wide leading-tight">
+                SUMATIF AKHIR SEMESTER (SAS)
+              </h2>
+              <div id="pv-title-tapel" class="font-bold text-[11pt] uppercase tracking-wide leading-tight mt-0.5">
+                TAHUN PELAJARAN 2026/2027
+              </div>
+            </div>
+
+            <!-- 3. IDENTITAS UJIAN (Borderless Table) -->
+            <div class="mb-3 text-[11pt]">
+              <table class="w-full border-collapse" style="font-size: 11pt; line-height: 1.15;">
+                <tbody>
+                  <tr>
+                    <td class="w-[20%] py-0.5 px-1 font-normal align-top">Mata Pelajaran</td>
+                    <td class="w-[3%] py-0.5 px-1 text-center align-top">:</td>
+                    <td id="pv-mapel" class="w-[37%] py-0.5 px-1 align-top font-normal">Ilmu Pengetahuan Alam (IPA)</td>
+                    
+                    <td class="w-[18%] py-0.5 px-1 font-normal align-top">Kelas / Fase</td>
+                    <td class="w-[3%] py-0.5 px-1 text-center align-top">:</td>
+                    <td id="pv-kelas" class="w-[19%] py-0.5 px-1 align-top font-normal">IX (Sembilan) / Fase D</td>
+                  </tr>
+                  <tr>
+                    <td class="py-0.5 px-1 font-normal align-top">Semester</td>
+                    <td class="py-0.5 px-1 text-center align-top">:</td>
+                    <td id="pv-semester" class="py-0.5 px-1 align-top font-normal">Ganjil</td>
+                    
+                    <td class="py-0.5 px-1 font-normal align-top">Alokasi Waktu</td>
+                    <td class="py-0.5 px-1 text-center align-top">:</td>
+                    <td id="pv-waktu" class="py-0.5 px-1 align-top font-normal">90 Menit</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- 4. PETUNJUK PENGERJAAN -->
+            <div id="pv-petunjuk-box" class="pt-1.5 pb-2.5 border-t border-b border-black text-center font-bold text-[10.5pt] mb-4">
+              <span id="pv-petunjuk-text">Pilihlah salah satu jawaban yang paling tepat dengan memberi tanda silang (X) pada huruf A, B, C, atau D!</span>
+            </div>
+
+            <!-- 5. RENDERED QUESTIONS CONTAINER -->
+            <div id="pv-questions-container" class="space-y-0 text-justify">
+              <!-- Dynamically populated questions will be inserted here -->
+            </div>
+
+          </article>
+        </div>
+
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- Modal Panduan Standar -->
+  <div id="modal-guide" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-xl max-w-2xl w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b pb-3">
+        <h3 class="font-bold text-slate-900 text-base flex items-center gap-2">
+          <i data-lucide="book-open" class="w-5 h-5 text-brand-600"></i>
+          Standar Resmi Pembuatan Soal F4 Siap Cetak
+        </h3>
+        <button id="btn-close-guide" class="text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="text-xs text-slate-700 space-y-3 leading-relaxed">
+        <p>Aplikasi ini mengonversi teks mentah hasil output AI menjadi file Microsoft Word (.docx) dengan standar cetak naskah ujian resmi di Indonesia:</p>
+        
+        <ul class="list-disc list-inside space-y-1.5 bg-slate-50 p-3 rounded-lg border border-slate-200">
+          <li><strong>Ukuran Kertas F4 Asli:</strong> Disetel langsung pada properti DOCX (210 mm × 330 mm atau 11.906 × 18.709 twips). Bukan Legal atau Letter.</li>
+          <li><strong>Margin Standar Ujian:</strong> Atas 2 cm, Bawah 2 cm, Kiri 2.5 cm (untuk penjilidan/staples), Kanan 2 cm.</li>
+          <li><strong>Spasi Paragraf Rapi:</strong> Before 0 pt, After 0 pt, Line Spacing Single. Tidak menggunakan tombol Enter berulang.</li>
+          <li><strong>Batas Antarsoal Eksplisit:</strong> Jarak Before 6 pt disuntikkan murni pada paragraf nomor soal baru.</li>
+          <li><strong>Tabel Soal Editable:</strong> Tabel dari teks AI otomatis diubah menjadi tabel Word bergaris yang dapat diedit langsung.</li>
+        </ul>
+
+        <p class="text-slate-500 italic">Tips: Cukup copy-paste langsung dari percakapan ChatGPT, Gemini, atau Claude tanpa perlu merapikan terlebih dahulu.</p>
+      </div>
+
+      <div class="flex justify-end pt-2">
+        <button id="btn-close-guide-2" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-xs font-semibold">
+          Saya Mengerti
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notification Toast Container -->
+  <div id="toast" class="fixed bottom-5 right-5 z-50 bg-slate-900 text-white px-4 py-3 rounded-lg shadow-xl text-xs flex items-center gap-2 transition-opacity duration-300 opacity-0 pointer-events-none">
+    <i data-lucide="check-circle" id="toast-icon" class="w-4 h-4 text-emerald-400"></i>
+    <span id="toast-message">Pesan notifikasi</span>
+  </div>
+
+  <script>
+    // State application
+    const state = {
+      kopBase64: null,
+      kopWidthPercent: 100,
+      zoom: 0.85,
+      parsedItems: [],
+      rawText: '',
+      warnings: [],
+      identity: {
+        jenisUjian: 'Sumatif Akhir Semester (SAS)',
+        mapel: 'Ilmu Pengetahuan Alam (IPA)',
+        kelas: 'IX (Sembilan) / Fase D',
+        semester: 'Ganjil',
+        tapel: '2026/2027',
+        waktu: '90 Menit',
+        petunjuk: 'Pilihlah salah satu jawaban yang paling tepat dengan memberi tanda silang (X) pada huruf A, B, C, atau D!'
+      },
+      settings: {
+        spacingBetween: 6,
+        marginTop: 2.0,
+        marginBottom: 2.0,
+        marginLeft: 2.5,
+        marginRight: 2.0
+      }
+    };
+
+    // Realistic Comprehensive Sample Data
+    const SAMPLE_RAW_TEXT = `KUMPULAN SOAL
+Stimulus 1 (Materi: Keterampilan generik dalam menggunakan TIK)
+Di era digital, kehadiran media sosial dan blog pribadi telah menjadi wadah utama bagi remaja untuk berekspresi, berbagi cerita, serta membangun portofolio karya. Namun, pemanfaatan platform-platform tersebut menuntut lebih dari sekadar kemampuan teknis mengetik atau menekan tombol unggah. Seorang kreator konten yang bijak harus mampu mengorganisasi ide tulisan secara runtut, melakukan verifikasi silang terhadap informasi yang diterima sebelum dibagikan kembali ke publik untuk menghindari disinformasi, serta mengelola interaksi di kolom komentar agar tetap santun dan konstruktif. Keterampilan-keterampilan dasar yang bersifat lintas bidang inilah yang menjadi fondasi utama dalam memaksimalkan potensi teknologi secara aman, produktif, dan bertanggung jawab.
+Berdasarkan teks tersebut, keterampilan generik manakah yang paling krusial diterapkan oleh seorang pengguna saat menerima informasi baru di media sosial sebelum membagikannya kepada khalayak luas?A. Mengunggah konten secara rutin setiap hari agar akun tetap aktif.B. Melakukan verifikasi silang informasi untuk mencegah penyebaran disinformasi.C. Membalas setiap komentar negatif dengan nada emosional demi membela diri.D. Mengatur tata letak visual blog agar terlihat lebih menarik dan estetis.
+
+Stimulus 2 (Materi: algoritma)
+Dalam pengembangan sebuah permainan video (game), pergerakan karakter utama tidak terjadi secara kebetulan, melainkan dikendalikan oleh sekumpulan instruksi langkah demi langkah yang dirancang oleh pembuatnya. Ketika pemain menekan tombol panah ke atas, program komputer harus memproses urutan kejadian secara presisi: memeriksa status tombol, menghitung perubahan koordinat vertikal karakter, memastikan tidak ada objek penghalang atau dinding di depannya, hingga memperbarui tampilan layar secara real-time. 
+Berdasarkan teks di atas, sebutkan dua elemen utama yang harus diperiksa oleh program sebelum karakter bergerak maju menghadapi rintangan!
+
+Stimulus 3 (Materi: Perangkat Lunak)
+Pembuatan dokumen resmi di lingkungan sekolah maupun perkantoran sangat bergantung pada ketersediaan perangkat lunak pengolah kata yang andal.
+Berdasarkan teks di atas, tentukan apakah pernyataan-pernyataan berikut Bernilai Benar (B) atau Salah (S)!
+| No | Pernyataan | B | S |
+| 1 | Perangkat lunak pengolah kata hanya dapat digunakan untuk mengetik teks mentah tanpa fitur penyisipan tabel. | | |
+| 2 | Perangkat lunak pengolah angka dirancang khusus untuk membantu pengguna melakukan analisis data. | | |
+| 3 | Perangkat lunak presentasi berfungsi sebagai media komunikasi visual. | | |
+
+Jodohkan pernyataan mengenai fungsi perangkat lunak berikut dengan pilihan jawaban yang tersedia di sebelah kanan!
+| No | Pernyataan | Pilihan Jawaban |
+| 1 | Kategori perangkat lunak yang diandalkan untuk menyusun laporan resmi dan dokumen teks di sekolah. | A. Perangkat lunak pengolah angka |
+| 2 | Kategori perangkat lunak yang digunakan secara khusus untuk analisis data dan laporan keuangan. | B. Perangkat lunak pengolah kata |
+| 3 | Perangkat lunak yang berfungsi sebagai media komunikasi visual melalui tayangan slide. | C. Perangkat lunak presentasi |`;
+
+    // Initialize Lucide icons
+    function refreshIcons() {
+      if (window.lucide) {
+        window.lucide.createIcons();
+      }
+    }
+
+    // Toast alert helper
+    function showToast(msg, isSuccess = true) {
+      const toast = document.getElementById('toast');
+      const toastMsg = document.getElementById('toast-message');
+      const toastIcon = document.getElementById('toast-icon');
+      
+      toastMsg.textContent = msg;
+      if (isSuccess) {
+        toastIcon.setAttribute('data-lucide', 'check-circle');
+        toastIcon.className = 'w-4 h-4 text-emerald-400';
+      } else {
+        toastIcon.setAttribute('data-lucide', 'alert-circle');
+        toastIcon.className = 'w-4 h-4 text-amber-400';
+      }
+      refreshIcons();
+
+      toast.classList.remove('opacity-0', 'pointer-events-none');
+      toast.classList.add('opacity-100');
+      
+      setTimeout(() => {
+        toast.classList.remove('opacity-100');
+        toast.classList.add('opacity-0', 'pointer-events-none');
+      }, 3200);
+    }
+
+    /**
+     * Konversi HTML Table asli dari Clipboard menjadi Markdown Table
+     */
+    function convertHtmlTableToMarkdown(htmlString) {
+      if (!htmlString || !htmlString.includes('<table')) return null;
+
+      try {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(htmlString, 'text/html');
+        const tables = doc.querySelectorAll('table');
+        if (tables.length === 0) return null;
+
+        let modifiedHtml = doc.body.innerHTML;
+
+        tables.forEach(table => {
+          const rows = Array.from(table.querySelectorAll('tr'));
+          if (rows.length === 0) return;
+
+          let mdRows = [];
+          let colCount = 0;
+
+          rows.forEach((tr, rIdx) => {
+            const cells = Array.from(tr.querySelectorAll('th, td'));
+            if (cells.length === 0) return;
+            if (cells.length > colCount) colCount = cells.length;
+
+            const rowText = '| ' + cells.map(c => c.textContent.trim().replace(/\|/g, '\\|').replace(/\s+/g, ' ')).join(' | ') + ' |';
+            mdRows.push(rowText);
+
+            // Tambahkan baris pemisah setelah baris header pertama
+            if (rIdx === 0) {
+              const sep = '| ' + cells.map(() => '---').join(' | ') + ' |';
+              mdRows.push(sep);
+            }
+          });
+
+          if (mdRows.length > 0) {
+            const tableMarkdown = '\n\n' + mdRows.join('\n') + '\n\n';
+            table.outerHTML = tableMarkdown;
+          }
+        });
+
+        // Kembalikan teks bersih yang telah mengonversi tabel visual
+        return doc.body.textContent.trim();
+      } catch (e) {
+        console.warn("Gagal konversi HTML table:", e);
+        return null;
+      }
+    }
+
+    /**
+     * Enhanced Text Parsing Engine:
+     * Mendukung tabel Markdown (|..|), tabel berformat tab (\t), tabel asli HTML,
+     * opsi jawaban menyatu (...?A. ...B. ...), pilihan ganda kompleks ([A], (A), [ ], 1), 2)),
+     * dan stimulus paragraf utuh tanpa terpotong.
+     */
+    function parseExamText(rawText) {
+      if (!rawText || !rawText.trim()) {
+        return [];
+      }
+
+      // Step 1: Pre-process text to separate inline options like "?A. ...B. ...C. ..." or complex options like "[A] ... [B]"
+      let normalized = rawText.replace(/\r\n/g, '\n');
+
+      // Expand inline options into separate lines (e.g. "?A. " -> "?\nA. " or ":A. " -> ":\nA. ")
+      normalized = normalized.replace(/([?!:\.\w\)])(?=[A-Ea-e]\.\s*)/g, '$1\n');
+      
+      // Separate multiple options crammed on single line: "A. xxx B. yyy" -> "A. xxx\nB. yyy"
+      normalized = normalized.replace(/(\b[A-Ea-e]\.[^\n]*?)(?=\s+[A-Ea-e]\.\s*)/g, '$1\n');
+
+      // Expand complex options format: [A], [B] or (A), (B) or [ ] A.
+      normalized = normalized.replace(/([?!:\.\w\)])(?=\s*\[[A-Ea-e\s]\]|\s*\([A-Ea-e]\))/g, '$1\n');
+      normalized = normalized.replace(/(\[[A-Ea-e\s]\][^\n]*?)(?=\s*\[[A-Ea-e\s]\])/g, '$1\n');
+      normalized = normalized.replace(/(\([A-Ea-e]\)[^\n]*?)(?=\s*\([A-Ea-e]\))/g, '$1\n');
+
+      // Expand numbered sub-options in complex questions: (1) xxx (2) yyy or 1) xxx 2) yyy
+      normalized = normalized.replace(/([?!:\.\w\)])(?=\s*\([1-9]\)|\s*[1-9]\))/g, '$1\n');
+      normalized = normalized.replace(/(\([1-9]\)[^\n]*?)(?=\s*\([1-9]\))/g, '$1\n');
+      normalized = normalized.replace(/(\b[1-9]\)[^\n]*?)(?=\s+[1-9]\))/g, '$1\n');
+
+      // Konversi baris berbasis Tab (\t) yang mewakili tabel asli jika ada
+      const linesPre = normalized.split('\n');
+      const convertedLines = [];
+      for (let l of linesPre) {
+        if (l.includes('\t') && l.split('\t').filter(c => c.trim().length > 0).length >= 2) {
+          const parts = l.split('\t').map(p => p.trim());
+          convertedLines.push('| ' + parts.join(' | ') + ' |');
+        } else {
+          convertedLines.push(l);
+        }
+      }
+
+      const rawLines = convertedLines.map(l => l.trimEnd());
+      const items = [];
+      const warnings = [];
+
+      let currentItem = null;
+      let inTable = false;
+      let tableRows = [];
+      let questionCounter = 0;
+      let detectedNumbers = [];
+
+      // Regex patterns
+      const stimulusHeaderRegex = /^(stimulus\s*\d*|wacana\s*\d*|bacaan\s*\d*|informasi\s*\d*)/i;
+      const questionNumberRegex = /^(\d+)[\.\)]\s*(.*)$/;
+      // Mendukung: A., A), (A), [A], [ ] A, [x] A, serta opsi kompleks 1), (1)
+      const optionRegex = /^([A-Ea-e]|\([A-Ea-e]\)|\[[A-Ea-e\s]\]|\[\s*\]\s*[A-Ea-e]|\[x\]\s*[A-Ea-e]|\([1-9]\)|[1-9]\))[\.\)]?\s*(.*)$/;
+      // Validasi ketat baris tabel Markdown: harus diawali dan diakhiri dengan | serta memiliki minimal 2 sel/pemisah
+      const isStrictMarkdownTableRow = (str) => {
+        const trimmed = str.trim();
+        if (!trimmed.startsWith('|') || !trimmed.endsWith('|')) return false;
+        const cellCount = trimmed.split('|').length - 1;
+        return cellCount >= 2;
+      };
+      
+      // Kata kunci awal baris yang secara spesifik merupakan kalimat perintah/soal
+      const specificQuestionLeadRegex = /^(berdasarkan\s+(teks|stimulus|bacaan|informasi|wacana|grafik|tabel|data|gambar)|perhatikan\s+(teks|stimulus|bacaan|gambar|tabel)|jodohkan\s+|tentukan\s+(apakah|nilai|pernyataan)|sebutkan\s+|uraikan\s+|jelaskan\s+|manakah\s+pernyataan|mengapa\s+|bagaimana\s+cara|pilihlah\s+(dua|tiga|lebih|jawaban|pernyataan))/i;
+      const sectionHeaderRegex = /^(kumpulan soal|kelengkapan|materi esensial|kisi-kisi soal|kunci dan skor|kunci jawaban|telaah soal)/i;
+
+      // Helper untuk membersihkan tanda bintang liar (* atau **) dari AI
+      const cleanMarkdownAsterisks = (text) => {
+        if (!text) return '';
+        return text
+          .replace(/\*\*\*([^*]+)\*\*\*/g, '$1') // bersihkan ***teks***
+          .replace(/\*\*([^*]+)\*\*/g, '$1')     // bersihkan **teks** (bold markdown)
+          .replace(/\*([^*]+)\*/g, '$1')         // bersihkan *teks* (italic markdown)
+          .replace(/^\s*[\*\-]\s+/g, '')         // bersihkan tanda bullet bintang di awal (* item)
+          .replace(/[\*\_]{1,3}/g, '')           // buang sisa asterik atau underscore liar
+          .trim();
+      };
+
+      for (let i = 0; i < rawLines.length; i++) {
+        let rawLine = rawLines[i].trim();
+        const isTableRow = isStrictMarkdownTableRow(rawLine);
+        let line = isTableRow ? rawLine : cleanMarkdownAsterisks(rawLine);
+
+        // Check if inside markdown table
+        if (isTableRow) {
+          if (/^\|[\s\-:|]+\|$/.test(line)) {
+            continue; // Lewati garis pemisah kolom header seperti |---|---|
+          }
+          const cells = line.split('|').slice(1, -1).map(c => cleanMarkdownAsterisks(c.trim()));
+          if (!inTable) {
+            inTable = true;
+            tableRows = [cells];
+          } else {
+            tableRows.push(cells);
+          }
+          continue;
+        } else if (inTable) {
+          // Begitu bertemu baris bukan tabel, tutup tabel secara tuntas
+          inTable = false;
+          if (currentItem && currentItem.type === 'question' && !currentItem.embeddedTable) {
+            currentItem.embeddedTable = [...tableRows];
+          } else {
+            items.push({
+              type: 'table',
+              rows: [...tableRows]
+            });
+          }
+          tableRows = [];
+        }
+
+        if (!line) {
+          // Garis kosong menandakan akhir paragraf stimulus alami (jika ada stimulus aktif)
+          if (currentItem && currentItem.type === 'stimulus') {
+            currentItem.pendingNewParagraph = true;
+          }
+          continue;
+        }
+
+        // Check for major section headers
+        if (sectionHeaderRegex.test(line)) {
+          if (currentItem) {
+            delete currentItem.pendingNewParagraph;
+            items.push(currentItem);
+            currentItem = null;
+          }
+          items.push({
+            type: 'instruction',
+            text: line.toUpperCase(),
+            isSectionHeader: true
+          });
+          continue;
+        }
+
+        // 1. Explicit Numbered Question (e.g., "1. " or "2) ")
+        const qMatch = line.match(questionNumberRegex);
+        if (qMatch && !isTableRow) {
+          const qNum = parseInt(qMatch[1], 10);
+          
+          if (currentItem) {
+            delete currentItem.pendingNewParagraph;
+            items.push(currentItem);
+          }
+          questionCounter = qNum;
+          detectedNumbers.push(qNum);
+
+          currentItem = {
+            type: 'question',
+            number: qNum,
+            questionText: qMatch[2],
+            options: [],
+            isEssay: true,
+            embeddedTable: null
+          };
+          continue;
+        }
+
+        // 2. Multiple Choice Option / Complex Multiple Choice (A., B., (A), [A], [ ] A, 1), (1))
+        const optMatch = line.match(optionRegex);
+        if (optMatch && currentItem && currentItem.type === 'question') {
+          currentItem.isEssay = false;
+          // Normalisasi label agar seragam dan rapi
+          let cleanLabel = optMatch[1].replace(/[\[\]\(\)\.]/g, '').trim().toUpperCase();
+          if (!cleanLabel) cleanLabel = '•';
+
+          currentItem.options.push({
+            label: cleanLabel,
+            text: optMatch[2]
+          });
+          continue;
+        }
+
+        // 3. Stimulus Header (e.g., "Stimulus 1 (Materi: ...)")
+        if (stimulusHeaderRegex.test(line)) {
+          if (currentItem) {
+            delete currentItem.pendingNewParagraph;
+            items.push(currentItem);
+          }
+          currentItem = {
+            type: 'stimulus',
+            title: line,
+            paragraphs: [],
+            pendingNewParagraph: false
+          };
+          continue;
+        }
+
+        // 4. Kalimat Soal / Perintah Baru (tanpa nomor eksplisit)
+        const isQuestionLead = specificQuestionLeadRegex.test(line);
+        const isDirectQuestionSentence = (line.endsWith('?') || line.endsWith(':')) && line.length < 250;
+
+        if (currentItem && currentItem.type === 'stimulus' && currentItem.paragraphs.length > 0 && (isQuestionLead || isDirectQuestionSentence)) {
+          delete currentItem.pendingNewParagraph;
+          items.push(currentItem);
+          questionCounter++;
+          detectedNumbers.push(questionCounter);
+
+          currentItem = {
+            type: 'question',
+            number: questionCounter,
+            questionText: line,
+            options: [],
+            isEssay: true,
+            embeddedTable: null
+          };
+          continue;
+        } else if (currentItem && currentItem.type === 'question' && (currentItem.options.length > 0 || currentItem.embeddedTable) && (isQuestionLead || isDirectQuestionSentence)) {
+          delete currentItem.pendingNewParagraph;
+          items.push(currentItem);
+          questionCounter++;
+          detectedNumbers.push(questionCounter);
+
+          currentItem = {
+            type: 'question',
+            number: questionCounter,
+            questionText: line,
+            options: [],
+            isEssay: true,
+            embeddedTable: null
+          };
+          continue;
+        }
+
+        // 5. Menyambung Teks Kalimat / Paragraf (Agar tidak terpotong-potong)
+        if (currentItem) {
+          if (currentItem.type === 'stimulus') {
+            if (currentItem.paragraphs.length === 0) {
+              currentItem.paragraphs.push(line);
+            } else if (currentItem.pendingNewParagraph) {
+              currentItem.paragraphs.push(line);
+              currentItem.pendingNewParagraph = false;
+            } else {
+              currentItem.paragraphs[currentItem.paragraphs.length - 1] += ' ' + line;
+            }
+          } else if (currentItem.type === 'question') {
+            if (currentItem.options.length > 0) {
+              const lastOpt = currentItem.options[currentItem.options.length - 1];
+              lastOpt.text += ' ' + line;
+            } else {
+              currentItem.questionText += ' ' + line;
+            }
+          }
+        } else {
+          items.push({
+            type: 'instruction',
+            text: line
+          });
+        }
+      }
+
+      // Finalize pending table or items
+      if (inTable && tableRows.length > 0) {
+        if (currentItem && currentItem.type === 'question' && !currentItem.embeddedTable) {
+          currentItem.embeddedTable = [...tableRows];
+        } else {
+          items.push({
+            type: 'table',
+            rows: [...tableRows]
+          });
+        }
+      }
+      if (currentItem) {
+        delete currentItem.pendingNewParagraph;
+        items.push(currentItem);
+      }
+
+      // Check number continuity
+      if (detectedNumbers.length > 0) {
+        for (let k = 0; k < detectedNumbers.length; k++) {
+          const expected = k + 1;
+          if (detectedNumbers[k] !== expected) {
+            warnings.push(`Urutan nomor soal terdeteksi melompat (ditemukan nomor ${detectedNumbers[k]} di posisi ke-${expected}).`);
+            break;
+          }
+        }
+      }
+
+      state.warnings = warnings;
+      return items;
+    }
+
+    function renderPreview() {
+      // Identity values
+      const jenisUjian = state.identity.jenisUjian || 'UJIAN SEKOLAH';
+      const tapel = state.identity.tapel ? `TAHUN PELAJARAN ${state.identity.tapel.replace(/^tahun\s+pelajaran\s+/i, '')}` : 'TAHUN PELAJARAN 2026/2027';
+
+      document.getElementById('pv-title-jenis-ujian').textContent = jenisUjian.toUpperCase();
+      document.getElementById('pv-title-tapel').textContent = tapel.toUpperCase();
+
+      document.getElementById('pv-mapel').textContent = state.identity.mapel || '-';
+      document.getElementById('pv-kelas').textContent = state.identity.kelas || '-';
+      document.getElementById('pv-semester').textContent = state.identity.semester || '-';
+      document.getElementById('pv-waktu').textContent = state.identity.waktu || '-';
+
+      const petunjukBox = document.getElementById('pv-petunjuk-box');
+      if (state.identity.petunjuk && state.identity.petunjuk.trim()) {
+        petunjukBox.classList.remove('hidden');
+        document.getElementById('pv-petunjuk-text').textContent = state.identity.petunjuk;
+      } else {
+        petunjukBox.classList.add('hidden');
+      }
+
+      // Kop Surat rendering
+      const kopContainer = document.getElementById('pv-kop-container');
+      const kopFallback = document.getElementById('pv-kop-text-fallback');
+      const kopImg = document.getElementById('pv-kop-img');
+
+      if (state.kopBase64) {
+        kopFallback.classList.add('hidden');
+        kopContainer.classList.remove('hidden');
+        kopImg.src = state.kopBase64;
+        kopImg.style.width = `${state.kopWidthPercent}%`;
+      } else {
+        kopContainer.classList.add('hidden');
+        kopFallback.classList.remove('hidden');
+      }
+
+      // Container for Questions
+      const container = document.getElementById('pv-questions-container');
+      container.innerHTML = '';
+
+      if (state.parsedItems.length === 0) {
+        container.innerHTML = `
+          <div class="py-12 text-center text-slate-400 font-sans italic text-sm">
+            <p>Belum ada soal yang diparsing.</p>
+            <p class="text-xs mt-1">Tempelkan teks soal di sebelah kiri dan klik "Parse & Rapikan Format".</p>
+          </div>
+        `;
+        document.getElementById('page-count-badge').textContent = '0 Halaman';
+        return;
+      }
+
+      state.parsedItems.forEach((item) => {
+        // Stimulus Rendering (Judul kecil tebal, isi paragraf REGULER / tidak tebal)
+        if (item.type === 'stimulus') {
+          const stimEl = document.createElement('div');
+          stimEl.className = 'mb-2 text-justify';
+          
+          let html = `<p class="font-bold text-[10.5pt] mb-1 italic text-slate-800" style="margin-top: ${state.settings.spacingBetween}pt;">${escapeHtml(item.title)}</p>`;
+          item.paragraphs.forEach(p => {
+            html += `<p class="mb-1 leading-normal font-normal text-black">${escapeHtml(p)}</p>`;
+          });
+          stimEl.innerHTML = html;
+          container.appendChild(stimEl);
+        }
+        
+        // Question Rendering
+        else if (item.type === 'question') {
+          const qEl = document.createElement('div');
+          qEl.style.marginTop = `${state.settings.spacingBetween}pt`;
+          qEl.className = 'leading-normal text-justify font-normal text-black';
+
+          let qHtml = `
+            <div class="flex items-start gap-1">
+              <span class="font-normal w-6 flex-shrink-0 text-right pr-1">${item.number}.</span>
+              <div class="flex-1 font-normal text-black">${escapeHtml(item.questionText)}</div>
+            </div>
+          `;
+
+          // Embedded Table in Question (e.g., Benar-Salah, Menjodohkan)
+          if (item.embeddedTable && item.embeddedTable.length > 0) {
+            qHtml += `
+              <div class="my-2 ml-7 overflow-x-auto">
+                <table class="border border-black border-collapse text-[10pt] w-full">
+                  <tbody>
+                    ${item.embeddedTable.map((row, rIdx) => `
+                      <tr>
+                        ${row.map(cell => `
+                          <${rIdx === 0 ? 'th' : 'td'} class="border border-black px-2 py-1 text-left ${rIdx === 0 ? 'font-bold bg-slate-100 text-center' : 'font-normal text-black'}">
+                            ${escapeHtml(cell)}
+                          </${rIdx === 0 ? 'th' : 'td'}>
+                        `).join('')}
+                      </tr>
+                    `).join('')}
+                  </tbody>
+                </table>
+              </div>
+            `;
+          }
+
+          // Options Rendering
+          if (item.options && item.options.length > 0) {
+            qHtml += `<div class="ml-7 mt-0.5 space-y-0.5">`;
+            item.options.forEach(opt => {
+              qHtml += `
+                <div class="flex items-start gap-2">
+                  <span class="font-normal w-4 flex-shrink-0">${opt.label}.</span>
+                  <span class="flex-1 font-normal text-black">${escapeHtml(opt.text)}</span>
+                </div>
+              `;
+            });
+            qHtml += `</div>`;
+          }
+
+          qEl.innerHTML = qHtml;
+          container.appendChild(qEl);
+        }
+
+        // Standalone Table (e.g. Kisi-kisi, Materi Esensial, Telaah Soal)
+        else if (item.type === 'table') {
+          const tblEl = document.createElement('div');
+          tblEl.className = 'my-3 overflow-x-auto';
+          tblEl.innerHTML = `
+            <table class="border border-black border-collapse text-[9.5pt] w-full">
+              <tbody>
+                ${item.rows.map((row, rIdx) => `
+                  <tr>
+                    ${row.map(cell => `
+                      <${rIdx === 0 ? 'th' : 'td'} class="border border-black px-2 py-1 text-left ${rIdx === 0 ? 'font-bold bg-slate-100 text-center' : 'font-normal text-black'}">
+                        ${escapeHtml(cell)}
+                      </${rIdx === 0 ? 'th' : 'td'}>
+                    `).join('')}
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          `;
+          container.appendChild(tblEl);
+        }
+
+        // Free instructions / Section titles
+        else if (item.type === 'instruction') {
+          const insEl = document.createElement('div');
+          if (item.isSectionHeader) {
+            insEl.className = 'font-bold text-center mt-4 mb-2 text-sm border-t border-b border-black py-1 tracking-wide';
+          } else {
+            insEl.className = 'font-normal my-1.5 text-black';
+          }
+          insEl.textContent = item.text;
+          container.appendChild(insEl);
+        }
+      });
+
+      updatePageEstimation();
+      updateAuditReport();
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function updatePageEstimation() {
+      const printSheet = document.getElementById('print-area');
+      const heightPx = printSheet.scrollHeight;
+      const pages = Math.max(1, Math.ceil(heightPx / 1150));
+      document.getElementById('page-count-badge').textContent = `Est. ${pages} Halaman (F4)`;
+    }
+
+    function updateAuditReport() {
+      const warningsBox = document.getElementById('audit-warnings-box');
+      const warningsList = document.getElementById('audit-warnings-list');
+      const auditBadge = document.getElementById('audit-badge');
+      const numIcon = document.getElementById('audit-numbering-icon');
+      const numText = document.getElementById('audit-numbering-text');
+
+      if (state.warnings.length > 0) {
+        warningsBox.classList.remove('hidden');
+        warningsList.innerHTML = state.warnings.map(w => `<li>${w}</li>`).join('');
+        auditBadge.className = 'px-2 py-0.5 text-[11px] font-semibold bg-amber-100 text-amber-800 rounded-full border border-amber-300 flex items-center gap-1';
+        auditBadge.innerHTML = `<i data-lucide="alert-triangle" class="w-3 h-3"></i> Perlu Diperiksa (${state.warnings.length})`;
+        
+        numIcon.setAttribute('data-lucide', 'alert-circle');
+        numIcon.className = 'w-4 h-4 text-amber-600 flex-shrink-0';
+        numText.textContent = 'Peringatan Urutan Nomor';
+      } else {
+        warningsBox.classList.add('hidden');
+        auditBadge.className = 'px-2 py-0.5 text-[11px] font-semibold bg-emerald-100 text-emerald-800 rounded-full border border-emerald-300 flex items-center gap-1';
+        auditBadge.innerHTML = `<i data-lucide="check" class="w-3 h-3"></i> Format Terverifikasi Siap`;
+
+        numIcon.setAttribute('data-lucide', 'check-circle-2');
+        numIcon.className = 'w-4 h-4 text-emerald-600 flex-shrink-0';
+        numText.textContent = 'Urutan Nomor Soal Valid';
+      }
+      refreshIcons();
+    }
+
+    /**
+     * Microsoft Word (.docx) Generator
+     * Preserves tables, options, and question layout in exact F4 standards.
+     */
+    async function exportToWordDOCX() {
+      if (!window.docx) {
+        showToast("Pustaka docx.js belum dimuat dengan sempurna.", false);
+        return;
+      }
+
+      const {
+        Document,
+        Packer,
+        Paragraph,
+        TextRun,
+        Table,
+        TableRow,
+        TableCell,
+        WidthType,
+        AlignmentType,
+        BorderStyle
+      } = window.docx;
+
+      try {
+        const docChildren = [];
+
+        // 1. ADD KOP SURAT IMAGE OR FALLBACK HEADER
+        if (state.kopBase64 && state.kopBase64.includes(',')) {
+          try {
+            const base64Data = state.kopBase64.split(',')[1];
+            const binaryString = atob(base64Data);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+              bytes[i] = binaryString.charCodeAt(i);
+            }
+
+            const targetWidth = Math.round(580 * (state.kopWidthPercent / 100));
+            const kopImageRun = new window.docx.ImageRun({
+              data: bytes.buffer,
+              transformation: {
+                width: targetWidth,
+                height: Math.round(targetWidth * 0.22)
+              }
+            });
+
+            docChildren.push(
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                spacing: { before: 0, after: 120 },
+                children: [kopImageRun]
+              })
+            );
+          } catch (kopErr) {
+            console.warn("Gagal menyematkan gambar kop surat, beralih ke kop teks:", kopErr);
+            addFallbackHeader(docChildren, Paragraph, TextRun, AlignmentType, BorderStyle);
+          }
+        } else {
+          addFallbackHeader(docChildren, Paragraph, TextRun, AlignmentType, BorderStyle);
+        }
+
+        // Helper untuk header teks resmi jika tidak ada gambar kop
+        function addFallbackHeader(childrenArr, ParaClass, RunClass, AlignClass, BorderClass) {
+          childrenArr.push(
+            new ParaClass({
+              alignment: AlignClass.CENTER,
+              spacing: { before: 0, after: 0, line: 240 },
+              children: [
+                new RunClass({ text: "PEMERINTAH PROVINSI / KABUPATEN", bold: true, font: "Times New Roman", size: 22 })
+              ]
+            }),
+            new ParaClass({
+              alignment: AlignClass.CENTER,
+              spacing: { before: 0, after: 0, line: 240 },
+              children: [
+                new RunClass({ text: "DINAS PENDIDIKAN DAN KEBUDAYAAN", bold: true, font: "Times New Roman", size: 24 })
+              ]
+            }),
+            new ParaClass({
+              alignment: AlignClass.CENTER,
+              spacing: { before: 0, after: 0, line: 240 },
+              children: [
+                new RunClass({ text: "SEKOLAH MENENGAH PERTAMA / ATAS", bold: true, font: "Times New Roman", size: 26 })
+              ]
+            }),
+            new ParaClass({
+              alignment: AlignClass.CENTER,
+              spacing: { before: 0, after: 120, line: 240 },
+              border: {
+                bottom: { style: BorderClass.SINGLE, size: 12, color: "000000" }
+              },
+              children: [
+                new RunClass({ text: "Jl. Pendidikan No. 123, Telepon (021) 1234567, Pos 12345", italics: true, font: "Times New Roman", size: 18 })
+              ]
+            })
+          );
+        }
+
+        // 2. JUDUL (JENIS UJIAN) & SUB JUDUL (TAHUN PELAJARAN)
+        const jenisUjianText = (state.identity.jenisUjian || "UJIAN SEKOLAH").toUpperCase();
+        const tapelText = state.identity.tapel 
+          ? `TAHUN PELAJARAN ${state.identity.tapel.replace(/^tahun\s+pelajaran\s+/i, '')}`.toUpperCase()
+          : "TAHUN PELAJARAN 2026/2027";
+
+        docChildren.push(
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            spacing: { before: 100, after: 20, line: 240 },
+            children: [
+              new TextRun({
+                text: jenisUjianText,
+                bold: true,
+                font: "Times New Roman",
+                size: 26 // 13pt
+              })
+            ]
+          }),
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            spacing: { before: 0, after: 120, line: 240 },
+            children: [
+              new TextRun({
+                text: tapelText,
+                bold: true,
+                font: "Times New Roman",
+                size: 22 // 11pt
+              })
+            ]
+          })
+        );
+
+        // 3. IDENTITY TABLE (Mata Pelajaran, Kelas, Semester, Alokasi Waktu)
+        const noBorder = {
+          top: { style: BorderStyle.NONE },
+          bottom: { style: BorderStyle.NONE },
+          left: { style: BorderStyle.NONE },
+          right: { style: BorderStyle.NONE }
+        };
+
+        const createIdentityCell = (text, widthPercent, isBold = false) => new TableCell({
+          width: { size: widthPercent, type: WidthType.PERCENTAGE },
+          borders: noBorder,
+          margins: { top: 30, bottom: 30, left: 50, right: 50 },
+          children: [
+            new Paragraph({
+              spacing: { before: 0, after: 0, line: 240 },
+              children: [
+                new TextRun({
+                  text: text || "-",
+                  bold: isBold,
+                  font: "Times New Roman",
+                  size: 22
+                })
+              ]
+            })
+          ]
+        });
+
+        const identityTable = new Table({
+          width: { size: 100, type: WidthType.PERCENTAGE },
+          borders: noBorder,
+          rows: [
+            new TableRow({
+              children: [
+                createIdentityCell("Mata Pelajaran", 20),
+                createIdentityCell(":", 3),
+                createIdentityCell(state.identity.mapel, 37),
+                createIdentityCell("Kelas / Fase", 18),
+                createIdentityCell(":", 3),
+                createIdentityCell(state.identity.kelas, 19)
+              ]
+            }),
+            new TableRow({
+              children: [
+                createIdentityCell("Semester", 20),
+                createIdentityCell(":", 3),
+                createIdentityCell(state.identity.semester, 37),
+                createIdentityCell("Alokasi Waktu", 18),
+                createIdentityCell(":", 3),
+                createIdentityCell(state.identity.waktu, 19)
+              ]
+            })
+          ]
+        });
+
+        docChildren.push(identityTable);
+
+        // 4. INSTRUCTION
+        if (state.identity.petunjuk && state.identity.petunjuk.trim()) {
+          docChildren.push(
+            new Paragraph({
+              alignment: AlignmentType.CENTER,
+              spacing: { before: 120, after: 120, line: 240 },
+              border: {
+                top: { style: BorderStyle.SINGLE, size: 6, color: "000000" },
+                bottom: { style: BorderStyle.SINGLE, size: 6, color: "000000" }
+              },
+              children: [
+                new TextRun({
+                  text: state.identity.petunjuk,
+                  bold: true,
+                  font: "Times New Roman",
+                  size: 21
+                })
+              ]
+            })
+          );
+        }
+
+        // 4. PARSED EXAM QUESTIONS
+        const borderSingle = { style: BorderStyle.SINGLE, size: 4, color: "000000" };
+        const cellBorders = {
+          top: borderSingle,
+          bottom: borderSingle,
+          left: borderSingle,
+          right: borderSingle
+        };
+
+        state.parsedItems.forEach((item) => {
+          if (item.type === 'stimulus') {
+            docChildren.push(
+              new Paragraph({
+                spacing: { before: 120, after: 40, line: 240 },
+                children: [
+                  new TextRun({
+                    text: item.title,
+                    bold: true,
+                    italics: true,
+                    font: "Times New Roman",
+                    size: 21
+                  })
+                ]
+              })
+            );
+
+            item.paragraphs.forEach(p => {
+              docChildren.push(
+                new Paragraph({
+                  spacing: { before: 0, after: 40, line: 240 },
+                  alignment: AlignmentType.JUSTIFIED,
+                  children: [
+                    new TextRun({
+                      text: p,
+                      bold: false, // Memastikan isi stimulus tidak tercetak tebal
+                      font: "Times New Roman",
+                      size: 22
+                    })
+                  ]
+                })
+              );
+            });
+          }
+
+          else if (item.type === 'question') {
+            docChildren.push(
+              new Paragraph({
+                spacing: { before: 120, after: 20, line: 240 },
+                alignment: AlignmentType.JUSTIFIED,
+                indent: { left: 360, hanging: 360 },
+                children: [
+                  new TextRun({
+                    text: `${item.number}. `,
+                    bold: false,
+                    font: "Times New Roman",
+                    size: 22
+                  }),
+                  new TextRun({
+                    text: item.questionText,
+                    bold: false,
+                    font: "Times New Roman",
+                    size: 22
+                  })
+                ]
+              })
+            );
+
+            // Embedded Table in Question
+            if (item.embeddedTable && item.embeddedTable.length > 0) {
+              const tableRows = item.embeddedTable.map((row, rIdx) => new TableRow({
+                children: row.map(cell => new TableCell({
+                  borders: cellBorders,
+                  margins: { top: 60, bottom: 60, left: 100, right: 100 },
+                  children: [
+                    new Paragraph({
+                      spacing: { before: 0, after: 0, line: 240 },
+                      children: [
+                        new TextRun({
+                          text: cell,
+                          bold: rIdx === 0,
+                          font: "Times New Roman",
+                          size: 20
+                        })
+                      ]
+                    })
+                  ]
+                }))
+              }));
+
+              docChildren.push(
+                new Table({
+                  width: { size: 95, type: WidthType.PERCENTAGE },
+                  alignment: AlignmentType.CENTER,
+                  rows: tableRows
+                })
+              );
+            }
+
+            // Options Paragraphs
+            if (item.options && item.options.length > 0) {
+              item.options.forEach(opt => {
+                docChildren.push(
+                  new Paragraph({
+                    spacing: { before: 0, after: 0, line: 240 },
+                    indent: { left: 720, hanging: 360 },
+                    children: [
+                      new TextRun({
+                        text: `${opt.label}. `,
+                        bold: false,
+                        font: "Times New Roman",
+                        size: 22
+                      }),
+                      new TextRun({
+                        text: opt.text,
+                        bold: false,
+                        font: "Times New Roman",
+                        size: 22
+                      })
+                    ]
+                  })
+                );
+              });
+            }
+          }
+
+          else if (item.type === 'table') {
+            const tableRows = item.rows.map((row, rIdx) => new TableRow({
+              children: row.map(cell => new TableCell({
+                borders: cellBorders,
+                margins: { top: 60, bottom: 60, left: 80, right: 80 },
+                children: [
+                  new Paragraph({
+                    spacing: { before: 0, after: 0, line: 240 },
+                    children: [
+                      new TextRun({
+                        text: cell,
+                        bold: rIdx === 0,
+                        font: "Times New Roman",
+                        size: 19
+                      })
+                    ]
+                  })
+                ]
+              }))
+            }));
+
+            docChildren.push(
+              new Table({
+                width: { size: 100, type: WidthType.PERCENTAGE },
+                rows: tableRows
+              })
+            );
+          }
+
+          else if (item.type === 'instruction') {
+            docChildren.push(
+              new Paragraph({
+                alignment: item.isSectionHeader ? AlignmentType.CENTER : AlignmentType.LEFT,
+                spacing: { before: 120, after: 60, line: 240 },
+                children: [
+                  new TextRun({
+                    text: item.text,
+                    bold: true,
+                    font: "Times New Roman",
+                    size: item.isSectionHeader ? 24 : 22
+                  })
+                ]
+              })
+            );
+          }
+        });
+
+        // 5. PACK TO F4 SECTION
+        const doc = new Document({
+          creator: "AutoFormat Soal Ujian",
+          description: "Naskah Soal Ujian Resmi Ukuran F4 Siap Cetak",
+          sections: [
+            {
+              properties: {
+                page: {
+                  size: {
+                    width: 11906, // 210 mm in twips
+                    height: 18709 // 330 mm in twips
+                  },
+                  margin: {
+                    top: Math.round(state.settings.marginTop * 567), // 1 cm = 567 twips
+                    bottom: Math.round(state.settings.marginBottom * 567),
+                    left: Math.round(state.settings.marginLeft * 567),
+                    right: Math.round(state.settings.marginRight * 567)
+                  }
+                }
+              },
+              children: docChildren
+            }
+          ]
+        });
+
+        // Kemas dokumen menjadi Blob
+        const blob = await Packer.toBlob(doc);
+        const fileName = `Soal_${(state.identity.mapel || 'Ujian').replace(/[^a-zA-Z0-9]/g, '_')}_F4.docx`;
+        
+        // Pemicu unduhan mandiri yang andal (Native fallback tanpa harus bergantung pada CDN FileSaver)
+        if (typeof window.saveAs === 'function') {
+          window.saveAs(blob, fileName);
+        } else {
+          const downloadUrl = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = downloadUrl;
+          link.download = fileName;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          setTimeout(() => URL.revokeObjectURL(downloadUrl), 4000);
+        }
+
+        showToast('Dokumen Word (.docx F4) berhasil diunduh!');
+      } catch (err) {
+        console.error("Gagal mengekspor dokumen DOCX:", err);
+        showToast("Terjadi kesalahan saat membuat file Word: " + (err.message || "Periksa konsol."), false);
+      }
+    }
+
+    // Setup listeners on DOM Content Loaded
+    document.addEventListener('DOMContentLoaded', () => {
+      refreshIcons();
+
+      const rawInput = document.getElementById('raw-soal-input');
+      const charCounter = document.getElementById('char-counter');
+      const detectedCounter = document.getElementById('detected-counter');
+
+      // Intersep event Paste pada textarea untuk membaca tabel HTML asli dari Gemini/Word/Web
+      rawInput.addEventListener('paste', (e) => {
+        const clipboardData = e.clipboardData || window.clipboardData;
+        if (!clipboardData) return;
+
+        const htmlData = clipboardData.getData('text/html');
+        if (htmlData && htmlData.includes('<table')) {
+          const converted = convertHtmlTableToMarkdown(htmlData);
+          if (converted) {
+            e.preventDefault();
+            // Masukkan teks yang tabelnya sudah dinormalisasi ke posisi kursor
+            const start = rawInput.selectionStart;
+            const end = rawInput.selectionEnd;
+            const currentVal = rawInput.value;
+            rawInput.value = currentVal.substring(0, start) + converted + currentVal.substring(end);
+            rawInput.selectionStart = rawInput.selectionEnd = start + converted.length;
+            rawInput.dispatchEvent(new Event('input'));
+            showToast('Tabel asli berhasil dikenali dan dikonversi otomatis.');
+          }
+        }
+      });
+
+      // Sync character counter
+      rawInput.addEventListener('input', () => {
+        const text = rawInput.value;
+        charCounter.textContent = `${text.length} karakter`;
+      });
+
+      // Handle Image Upload for Kop Surat
+      const kopInput = document.getElementById('input-kop');
+      const kopPreviewContainer = document.getElementById('kop-preview-container');
+      const kopPreviewImg = document.getElementById('kop-preview-img');
+      const btnRemoveKop = document.getElementById('btn-remove-kop');
+      const selectKopWidth = document.getElementById('select-kop-width');
+
+      kopInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        if (!file.type.match('image.*')) {
+          showToast('Harap pilih file gambar (PNG, JPG, atau JPEG)', false);
+          return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          state.kopBase64 = event.target.result;
+          kopPreviewImg.src = state.kopBase64;
+          kopPreviewContainer.classList.remove('hidden');
+          btnRemoveKop.classList.remove('hidden');
+          renderPreview();
+          showToast('Kop surat berhasil diunggah.');
+        };
+        reader.readAsDataURL(file);
+      });
+
+      btnRemoveKop.addEventListener('click', () => {
+        state.kopBase64 = null;
+        kopInput.value = '';
+        kopPreviewContainer.classList.add('hidden');
+        btnRemoveKop.classList.add('hidden');
+        renderPreview();
+        showToast('Kop surat dihapus.');
+      });
+
+      selectKopWidth.addEventListener('change', (e) => {
+        state.kopWidthPercent = parseInt(e.target.value, 10);
+        renderPreview();
+      });
+
+      // Identity Input Listeners
+      const syncIdentity = () => {
+        state.identity.jenisUjian = document.getElementById('id-jenis-ujian').value;
+        state.identity.mapel = document.getElementById('id-mapel').value;
+        state.identity.kelas = document.getElementById('id-kelas').value;
+        state.identity.semester = document.getElementById('id-semester').value;
+        state.identity.tapel = document.getElementById('id-tapel').value;
+        state.identity.waktu = document.getElementById('id-waktu').value;
+        state.identity.petunjuk = document.getElementById('id-petunjuk').value;
+        renderPreview();
+      };
+
+      ['id-jenis-ujian', 'id-mapel', 'id-kelas', 'id-semester', 'id-tapel', 'id-waktu', 'id-petunjuk'].forEach(id => {
+        document.getElementById(id).addEventListener('input', syncIdentity);
+      });
+
+      // Parse & Rapikan Button
+      const btnParse = document.getElementById('btn-parse-and-clean');
+      btnParse.addEventListener('click', () => {
+        const text = rawInput.value;
+        if (!text.trim()) {
+          showToast('Silakan tempel teks soal terlebih dahulu.', false);
+          return;
+        }
+
+        state.parsedItems = parseExamText(text);
+        const questionCount = state.parsedItems.filter(i => i.type === 'question').length;
+        detectedCounter.textContent = `${questionCount} Soal Terdeteksi`;
+        renderPreview();
+        showToast(`Berhasil memproses ${questionCount} soal.`);
+      });
+
+      // Load Comprehensive Sample
+      document.getElementById('btn-load-sample').addEventListener('click', () => {
+        rawInput.value = SAMPLE_RAW_TEXT;
+        rawInput.dispatchEvent(new Event('input'));
+        btnParse.click();
+      });
+
+      // Clear button
+      document.getElementById('btn-clear-text').addEventListener('click', () => {
+        rawInput.value = '';
+        rawInput.dispatchEvent(new Event('input'));
+        state.parsedItems = [];
+        detectedCounter.textContent = '0 Soal Terdeteksi';
+        renderPreview();
+        showToast('Teks soal telah dibersihkan.');
+      });
+
+      // Clipboard Paste Helper
+      document.getElementById('btn-paste-clipboard').addEventListener('click', async () => {
+        try {
+          if (navigator.clipboard && navigator.clipboard.read) {
+            // Coba baca format text/html asli jika tersedia di Clipboard API
+            const clipboardItems = await navigator.clipboard.read();
+            for (const item of clipboardItems) {
+              if (item.types.includes('text/html')) {
+                const blob = await item.getType('text/html');
+                const htmlText = await blob.text();
+                if (htmlText.includes('<table')) {
+                  const converted = convertHtmlTableToMarkdown(htmlText);
+                  if (converted) {
+                    rawInput.value = converted;
+                    rawInput.dispatchEvent(new Event('input'));
+                    btnParse.click();
+                    showToast('Tabel asli dari clipboard berhasil dikenali & dirapikan.');
+                    return;
+                  }
+                }
+              }
+            }
+          }
+
+          if (navigator.clipboard && navigator.clipboard.readText) {
+            const clipText = await navigator.clipboard.readText();
+            if (clipText) {
+              rawInput.value = clipText;
+              rawInput.dispatchEvent(new Event('input'));
+              btnParse.click();
+              showToast('Teks berhasil ditempel dari clipboard.');
+              return;
+            }
+          }
+          showToast('Gunakan shortcut Ctrl+V pada kotak teks.', false);
+        } catch (e) {
+          showToast('Izin clipboard ditolak. Silakan tempel manual dengan tombol Ctrl+V.', false);
+        }
+      });
+
+      // Export Buttons
+      document.getElementById('btn-export-docx').addEventListener('click', () => {
+        if (state.parsedItems.length === 0) {
+          showToast('Silakan parse teks soal sebelum mengunduh Word.', false);
+          return;
+        }
+        exportToWordDOCX();
+      });
+
+      // Native Print / PDF Direct
+      document.getElementById('btn-print-preview').addEventListener('click', () => {
+        if (state.parsedItems.length === 0) {
+          showToast('Silakan parse teks soal sebelum mencetak.', false);
+          return;
+        }
+        window.print();
+      });
+
+      // Copy Clean Formatted Text
+      document.getElementById('btn-copy-formatted').addEventListener('click', () => {
+        if (state.parsedItems.length === 0) {
+          showToast('Tidak ada teks yang telah diparsing.', false);
+          return;
+        }
+
+        let cleanText = `${state.identity.jenisUjian.toUpperCase()}\n`;
+        cleanText += `Mata Pelajaran: ${state.identity.mapel} | Kelas: ${state.identity.kelas}\n`;
+        cleanText += `Waktu: ${state.identity.waktu}\n\n`;
+        if (state.identity.petunjuk) cleanText += `Petunjuk: ${state.identity.petunjuk}\n\n`;
+
+        state.parsedItems.forEach(item => {
+          if (item.type === 'stimulus') {
+            cleanText += `${item.title}\n${item.paragraphs.join('\n')}\n\n`;
+          } else if (item.type === 'question') {
+            cleanText += `${item.number}. ${item.questionText}\n`;
+            if (item.options) {
+              item.options.forEach(o => {
+                cleanText += `   ${o.label}. ${o.text}\n`;
+              });
+            }
+            cleanText += '\n';
+          }
+        });
+
+        // Use standard copy
+        const temp = document.createElement('textarea');
+        temp.value = cleanText;
+        document.body.appendChild(temp);
+        temp.select();
+        document.execCommand('copy');
+        document.body.removeChild(temp);
+        showToast('Teks bersih telah disalin ke clipboard.');
+      });
+
+      // Zoom Controls for F4 Canvas Preview
+      const previewScaler = document.getElementById('preview-scaler');
+      const zoomLevelLabel = document.getElementById('zoom-level');
+
+      document.getElementById('zoom-in').addEventListener('click', () => {
+        state.zoom = Math.min(1.4, state.zoom + 0.1);
+        applyZoom();
+      });
+
+      document.getElementById('zoom-out').addEventListener('click', () => {
+        state.zoom = Math.max(0.4, state.zoom - 0.1);
+        applyZoom();
+      });
+
+      document.getElementById('zoom-reset').addEventListener('click', () => {
+        state.zoom = 0.85;
+        applyZoom();
+      });
+
+      function applyZoom() {
+        previewScaler.style.transform = `scale(${state.zoom})`;
+        zoomLevelLabel.textContent = `${Math.round(state.zoom * 100)}%`;
+      }
+
+      // Accordion collapses
+      setupAccordion('header-step1', 'body-step1', 'icon-step1');
+      setupAccordion('header-step3', 'body-step3', 'icon-step3');
+
+      function setupAccordion(headerId, bodyId, iconId) {
+        const header = document.getElementById(headerId);
+        const body = document.getElementById(bodyId);
+        const icon = document.getElementById(iconId);
+
+        header.addEventListener('click', () => {
+          const isHidden = body.classList.contains('hidden');
+          if (isHidden) {
+            body.classList.remove('hidden');
+            icon.classList.add('rotate-180');
+          } else {
+            body.classList.add('hidden');
+            icon.classList.remove('rotate-180');
+          }
+        });
+      }
+
+      // Advanced Settings
+      document.getElementById('setting-spacing-between').addEventListener('change', (e) => {
+        state.settings.spacingBetween = parseInt(e.target.value, 10);
+        renderPreview();
+      });
+
+      document.getElementById('btn-reset-settings').addEventListener('click', () => {
+        state.settings.spacingBetween = 6;
+        document.getElementById('setting-spacing-between').value = "6";
+        document.getElementById('margin-top').value = "2.0 cm";
+        document.getElementById('margin-bottom').value = "2.0 cm";
+        document.getElementById('margin-left').value = "2.5 cm";
+        document.getElementById('margin-right').value = "2.0 cm";
+        renderPreview();
+        showToast('Format dokumen dikembalikan ke konfigurasi standar F4.');
+      });
+
+      // Guide Modal
+      const modalGuide = document.getElementById('modal-guide');
+      document.getElementById('btn-quick-guide').addEventListener('click', () => {
+        modalGuide.classList.remove('hidden');
+      });
+      document.getElementById('btn-close-guide').addEventListener('click', () => {
+        modalGuide.classList.add('hidden');
+      });
+      document.getElementById('btn-close-guide-2').addEventListener('click', () => {
+        modalGuide.classList.add('hidden');
+      });
+
+      // Initial sample load to demonstrate live working state immediately
+      document.getElementById('btn-load-sample').click();
+    });
+  </script>
+</body>
+</html>

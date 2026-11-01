@@ -1,0 +1,7 @@
+{
+  "name": "Generator AI - Soal Asesmen",
+  "description": "Generator instrumen asesmen pembelajaran dan pembuat soal standar Kurikulum Merdeka oleh Zainul Bashori.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
