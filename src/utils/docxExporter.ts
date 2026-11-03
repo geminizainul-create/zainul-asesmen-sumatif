@@ -10,6 +10,8 @@ import {
   AlignmentType,
   BorderStyle,
   ImageRun,
+  Tab,
+  TabStopType,
 } from 'docx';
 import { saveAs } from 'file-saver';
 import JSZip from 'jszip';
@@ -872,21 +874,224 @@ export interface ResolvedQuestionCapaianMateri {
   materi: string;
   uraianMateri: string;
   level?: string;
+  jenisSoal?: string;
+}
+
+function extractCoreTopic(text: string, defaultMapel = 'Mata Pelajaran'): string {
+  if (!text) return defaultMapel;
+  const clean = cleanMarkdown(text);
+  if (clean.includes('/')) {
+    const parts = clean.split('/');
+    return parts[parts.length - 1].trim();
+  }
+  if (clean.includes(':')) {
+    const parts = clean.split(':');
+    return parts[parts.length - 1].trim();
+  }
+  return clean.length > 50 ? clean.slice(0, 47) + '...' : clean;
 }
 
 /**
- * Resolves accurate Capaian Pembelajaran, Tujuan Pembelajaran, Materi Pokok, and Uraian Materi for a specific question number
+ * Normalizes question types into strictly ONE unambiguous canonical type:
+ * 'Pilihan Ganda' | 'PG Kompleks' | 'Menjodohkan' | 'Benar-Salah' | 'Uraian'
+ * Eliminates compound slashes (e.g. 'Isian / Tabel', 'PG Kompleks (PGK)', 'Uraian / Uraian Singkat', 'Benar - Salah').
+ */
+export function normalizeQuestionType(
+  rawType?: string,
+  question?: ParsedItem
+): 'Pilihan Ganda' | 'PG Kompleks' | 'Menjodohkan' | 'Benar-Salah' | 'Uraian' {
+  // If a question object is provided, prioritize its structural characteristics
+  if (question) {
+    if (question.options && question.options.length > 0) {
+      const qText = (question.questionText || '').toLowerCase();
+      const hasPgkOption = question.options.some((o) => o.label.includes('['));
+      const hasPgkKeyword =
+        qText.includes('kompleks') ||
+        qText.includes('lebih dari satu') ||
+        qText.includes('dua atau tiga') ||
+        qText.includes('pilihlah dua') ||
+        qText.includes('pilihlah 2') ||
+        qText.includes('pilihlah 3') ||
+        qText.includes('pilih 2') ||
+        qText.includes('pilih 3');
+      const rawIsPgk = !!rawType && /kompleks|pgk/i.test(rawType);
+
+      if (hasPgkOption || hasPgkKeyword || rawIsPgk) {
+        return 'PG Kompleks';
+      }
+      return 'Pilihan Ganda';
+    }
+
+    if (question.embeddedTable && question.embeddedTable.length > 0) {
+      const qText = (question.questionText || '').toLowerCase();
+      const tableContent = question.embeddedTable.map((r) => r.join(' ')).join(' ').toLowerCase();
+      const combined = `${qText} ${tableContent}`;
+
+      if (combined.includes('benar') || combined.includes('salah') || (rawType && /benar|salah|b\/s/i.test(rawType))) {
+        return 'Benar-Salah';
+      }
+      if (combined.includes('jodoh') || combined.includes('pasang') || (rawType && /jodoh/i.test(rawType))) {
+        return 'Menjodohkan';
+      }
+      return 'Uraian';
+    }
+
+    // Question has no options and no embedded table
+    if (rawType) {
+      const clean = rawType.toLowerCase().trim();
+      if (clean.includes('kompleks') || clean.includes('pgk')) return 'PG Kompleks';
+      if (clean.includes('ganda') || /^pg\b/.test(clean)) return 'Pilihan Ganda';
+      if (clean.includes('jodoh') || clean.includes('pasang')) return 'Menjodohkan';
+      if (clean.includes('benar') || clean.includes('salah') || clean.includes('b/s')) return 'Benar-Salah';
+      return 'Uraian';
+    }
+    return 'Uraian';
+  }
+
+  // When no question object is provided, parse rawType string
+  if (rawType) {
+    const clean = rawType.toLowerCase().trim();
+    if (clean.includes('kompleks') || clean.includes('pgk')) return 'PG Kompleks';
+    if (clean.includes('ganda') || /^pg\b/.test(clean)) return 'Pilihan Ganda';
+    if (clean.includes('jodoh') || clean.includes('pasang')) return 'Menjodohkan';
+    if (clean.includes('benar') || clean.includes('salah') || clean.includes('b/s')) return 'Benar-Salah';
+    return 'Uraian';
+  }
+
+  return 'Uraian';
+}
+
+/**
+ * Resolves accurate Capaian Pembelajaran, Tujuan Pembelajaran, Materi Pokok, and Uraian Materi for a specific question number,
+ * prioritizing the AI's actual generated thoughts from the exam and appendix tables over static templates.
  */
 export function resolveQuestionCapaianAndMateri(
   qNum: number,
   packets?: PacketData[],
   precedingStimulus?: ParsedItem | null,
-  defaultMapel: string = 'Mata Pelajaran'
+  defaultMapel: string = 'Mata Pelajaran',
+  allParsedItems?: ParsedItem[],
+  question?: ParsedItem
 ): ResolvedQuestionCapaianMateri {
-  // 1. Prioritize structured packets if available from app generator
+  // 1. HIGHEST PRIORITY: Extract directly from the AI-generated "TABEL MATERI ESENSIAL" if present
+  if (allParsedItems && allParsedItems.length > 0) {
+    const materiTables = allParsedItems.filter(
+      (it) => it.type === 'table' && it.rows && it.rows.length > 1 && (it.section === 'materi' || it.section === 'appendix_other' || !it.section)
+    );
+
+    for (const mTable of materiTables) {
+      if (!mTable.rows) continue;
+      const headerStr = (mTable.rows[0] || []).join(' ').toLowerCase();
+      const isMateriTable =
+        (headerStr.includes('capaian') || headerStr.includes('tujuan') || headerStr.includes('uraian')) &&
+        (headerStr.includes('materi') || headerStr.includes('esensial') || headerStr.includes('soal'));
+
+      if (isMateriTable) {
+        for (let r = 1; r < mTable.rows.length; r++) {
+          const row = mTable.rows[r];
+          if (!row || row.length === 0) continue;
+          const firstCell = cleanMarkdown(row[0] || '').trim();
+          const numMatch = firstCell.match(/^(\d+)/);
+          const rowNum = numMatch ? parseInt(numMatch[1], 10) : r;
+
+          if (rowNum === qNum) {
+            let cp = '';
+            let tp = '';
+            let uraian = '';
+            let jenis = '';
+
+            if (row.length >= 5) {
+              cp = cleanMarkdown(row[1] || '');
+              tp = cleanMarkdown(row[2] || '');
+              uraian = cleanMarkdown(row[3] || '');
+              jenis = cleanMarkdown(row[4] || '');
+            } else if (row.length === 4) {
+              cp = cleanMarkdown(row[1] || '');
+              tp = cleanMarkdown(row[2] || '');
+              uraian = cleanMarkdown(row[3] || '');
+            } else if (row.length === 3) {
+              cp = cleanMarkdown(row[1] || '');
+              uraian = cleanMarkdown(row[2] || '');
+              tp = cp;
+            }
+
+            if (cp || tp || uraian) {
+              return {
+                materi: extractCoreTopic(cp || uraian || defaultMapel, defaultMapel),
+                capaian: cp || `Menganalisis prinsip dan konsep esensial pada butir soal nomor ${qNum}.`,
+                tujuan: tp || `Peserta didik mampu menyelesaikan dan menganalisis permasalahan butir nomor ${qNum}.`,
+                uraianMateri: uraian || `${cp || 'Konsep Materi'}: Pembahasan mendalam butir soal nomor ${qNum}.`,
+                level: 'L2 / Sedang',
+                jenisSoal: normalizeQuestionType(jenis, question),
+              };
+            }
+          }
+        }
+      }
+    }
+
+    // 2. SECOND PRIORITY: Extract from AI-generated "KISI-KISI" table in parsedItems!
+    // In Kisi-Kisi, the AI produces columns: | No | Capaian Pembelajaran / Materi Pokok | Indikator Soal | Level Kognitif | Bentuk Soal | No Soal |
+    const kisiTables = allParsedItems.filter(
+      (it) => it.type === 'table' && it.rows && it.rows.length > 1 && (it.section === 'kisi_kisi' || it.section === 'appendix_other' || !it.section)
+    );
+
+    for (const kTable of kisiTables) {
+      if (!kTable.rows) continue;
+      const headerStr = (kTable.rows[0] || []).join(' ').toLowerCase();
+      if (!headerStr.includes('indikator') && !headerStr.includes('kisi')) continue;
+
+      for (let r = 1; r < kTable.rows.length; r++) {
+        const row = kTable.rows[r];
+        if (!row || row.length === 0) continue;
+        const firstCol = cleanMarkdown(row[0] || '').trim();
+        const lastCol = cleanMarkdown(row[row.length - 1] || '').trim();
+        const numMatch = firstCol.match(/^(\d+)/) || lastCol.match(/^(\d+)/);
+        const rowNum = numMatch ? parseInt(numMatch[1], 10) : r;
+
+        if (rowNum === qNum) {
+          const aiCP = cleanMarkdown(row[1] || '');
+          const aiIndikator = cleanMarkdown(row[2] || '');
+          const aiLevel = cleanMarkdown(row[3] || '');
+          const aiBentuk = cleanMarkdown(row[4] || '');
+
+          if (aiCP && aiIndikator) {
+            const coreTopic = extractCoreTopic(aiCP, defaultMapel);
+            let dynamicExcerpt = '';
+            if (precedingStimulus?.paragraphs && precedingStimulus.paragraphs.length > 0) {
+              const pClean = cleanMarkdown(precedingStimulus.paragraphs[0])
+                .replace(/^(bacalah|cermati|perhatikan)\s+.*?menjawab\s+soal\s*nomor\s*[\d,\s–-]+\s*!?/i, '')
+                .trim();
+              if (pClean.length > 15) {
+                dynamicExcerpt = pClean.length > 150 ? pClean.slice(0, 147) + '...' : pClean;
+              }
+            }
+            if (!dynamicExcerpt && question?.questionText) {
+              dynamicExcerpt = cleanMarkdown(question.questionText).slice(0, 140);
+            }
+
+            return {
+              materi: coreTopic,
+              capaian: aiCP,
+              tujuan: aiIndikator.toLowerCase().startsWith('disajikan')
+                ? `Peserta didik mampu ${aiIndikator.replace(/^disajikan\s+.*?,?\s*(peserta\s+didik\s+mampu\s+)?/i, '')}`
+                : aiIndikator,
+              uraianMateri: dynamicExcerpt
+                ? `${coreTopic}: ${dynamicExcerpt}`
+                : `Konsep kunci dan telaah pemecahan masalah materi ${aiCP}.`,
+              level: aiLevel,
+              jenisSoal: normalizeQuestionType(aiBentuk, question),
+            };
+          }
+        }
+      }
+    }
+  }
+
+  // 3. THIRD PRIORITY: Extract from structured packets if available
   if (packets && packets.length > 0) {
     for (const packet of packets) {
-      for (const [, item] of Object.entries(packet.soalDetails)) {
+      for (const [formTypeKey, item] of Object.entries(packet.soalDetails)) {
         if (item.enabled && item.nomor) {
           const parts = item.nomor.split(/[ ,;]+/);
           for (const part of parts) {
@@ -904,28 +1109,36 @@ export function resolveQuestionCapaianAndMateri(
 
             if (matches) {
               const mat = packet.materi.trim() || defaultMapel;
-              const tp = packet.tujuan.trim() || `Peserta didik mampu memahami dan menerapkan konsep pokok ${mat}.`;
-              const cp = `Peserta didik mampu memahami konsep dasar, menganalisis data kontekstual, serta menyelesaikan masalah terkait ${mat}.`;
+              const subTopic = mat;
 
-              let excerpt = '';
+              let dynamicExcerpt = '';
               if (precedingStimulus?.paragraphs && precedingStimulus.paragraphs.length > 0) {
                 const rawP = cleanMarkdown(precedingStimulus.paragraphs[0])
                   .replace(/^(bacalah|cermati|perhatikan)\s+.*?menjawab\s+soal\s*nomor\s*[\d,\s–-]+\s*!?/i, '')
                   .trim();
                 if (rawP.length > 10) {
-                  excerpt = rawP.length > 140 ? rawP.slice(0, 137) + '...' : rawP;
+                  dynamicExcerpt = rawP.length > 150 ? rawP.slice(0, 147) + '...' : rawP;
                 }
               }
-              const uraian = excerpt
-                ? `${mat}: ${excerpt}`
-                : `Pembahasan konsep esensial, fakta kontekstual, dan prinsip pembelajaran ${mat}.`;
+              if (!dynamicExcerpt && question?.questionText) {
+                dynamicExcerpt = cleanMarkdown(question.questionText).slice(0, 140);
+              }
+
+              const cp = `Menganalisis prinsip, fakta ilmiah, dan penerapan konsep ${subTopic} (${mat}).`;
+              const tp = question?.questionText
+                ? `Peserta didik mampu menyelesaikan butir soal: "${cleanMarkdown(question.questionText).slice(0, 90)}..."`
+                : packet.tujuan.trim() || `Peserta didik mampu menganalisis konsep pokok materi ${subTopic}.`;
+              const uraian = dynamicExcerpt
+                ? `${subTopic}: ${dynamicExcerpt}`
+                : `Pembahasan prinsip esensial, fakta kontekstual, dan analisis konsep ${subTopic}.`;
 
               return {
-                materi: mat,
+                materi: subTopic,
                 tujuan: tp,
                 capaian: cp,
                 uraianMateri: uraian,
                 level: item.level,
+                jenisSoal: normalizeQuestionType(formTypeKey, question),
               };
             }
           }
@@ -934,7 +1147,7 @@ export function resolveQuestionCapaianAndMateri(
     }
   }
 
-  // 2. Fallback: extract genuine topic from stimulus, cleanly removing command prompt instructions
+  // 4. FOURTH PRIORITY: Contextual extraction from stimulus and question text
   let extractedMateri = '';
   if (precedingStimulus) {
     if (precedingStimulus.title) {
@@ -967,20 +1180,25 @@ export function resolveQuestionCapaianAndMateri(
     extractedMateri = defaultMapel;
   }
 
-  const cp = `Peserta didik mampu memahami konsep dasar dan menganalisis prinsip ${extractedMateri}.`;
-  const tp = `Peserta didik mampu menganalisis dan menyelesaikan permasalahan kontekstual materi ${extractedMateri}.`;
-
-  let excerpt = '';
+  let dynamicExcerpt = '';
   if (precedingStimulus?.paragraphs && precedingStimulus.paragraphs.length > 0) {
     const rawP = cleanMarkdown(precedingStimulus.paragraphs[0])
       .replace(/^(bacalah|cermati|perhatikan)\s+.*?menjawab\s+soal\s*nomor\s*[\d,\s–-]+\s*!?/i, '')
       .trim();
     if (rawP.length > 10) {
-      excerpt = rawP.length > 140 ? rawP.slice(0, 137) + '...' : rawP;
+      dynamicExcerpt = rawP.length > 150 ? rawP.slice(0, 147) + '...' : rawP;
     }
   }
-  const uraian = excerpt
-    ? `${extractedMateri}: ${excerpt}`
+  if (!dynamicExcerpt && question?.questionText) {
+    dynamicExcerpt = cleanMarkdown(question.questionText).slice(0, 140);
+  }
+
+  const cp = `Memahami konsep inti dan menganalisis fenomena kontekstual materi ${extractedMateri}.`;
+  const tp = question?.questionText
+    ? `Peserta didik mampu menganalisis stimulus dan menuntaskan butir soal: "${cleanMarkdown(question.questionText).slice(0, 90)}..."`
+    : `Peserta didik mampu menganalisis permasalahan kontekstual materi ${extractedMateri}.`;
+  const uraian = dynamicExcerpt
+    ? `${extractedMateri}: ${dynamicExcerpt}`
     : `Pembahasan konsep esensial dan pokok bahasan materi ${extractedMateri}.`;
 
   return {
@@ -988,6 +1206,8 @@ export function resolveQuestionCapaianAndMateri(
     tujuan: tp,
     capaian: cp,
     uraianMateri: uraian,
+    level: question?.options ? 'L2 / Sedang' : 'L3 / Penalaran',
+    jenisSoal: normalizeQuestionType(undefined, question),
   };
 }
 
@@ -999,9 +1219,10 @@ export function extractAnswerKeyForQuestion(
   qNum: number,
   kunciItems: ParsedItem[],
   bentukSoal: string,
-  materi: string
+  materi: string,
+  allParsedItems?: ParsedItem[]
 ): string {
-  // 1. Search in text items (gabungkan jika ada baris kelanjutan opsi seperti B di baris berikutnya)
+  // 1. Search in text items by exact question number (gabungkan jika ada baris kelanjutan opsi seperti B di baris berikutnya)
   for (let k = 0; k < kunciItems.length; k++) {
     const kItem = kunciItems[k];
     if (kItem.text) {
@@ -1054,18 +1275,76 @@ export function extractAnswerKeyForQuestion(
     }
   }
 
-  // 3. Fallback when not found in parsed output:
+  // 3. Smart Search by relative index if AI grouped answers by question type (e.g. Pilihan Ganda 1..5)
+  if (allParsedItems && allParsedItems.length > 0) {
+    const allQuestions = allParsedItems.filter((i) => i.type === 'question');
+    const isThisType = (q: ParsedItem) => {
+      const qText = (q.questionText || '').toLowerCase();
+      if (bentukSoal.includes('Kompleks')) {
+        return (q.options && q.options.some((o) => o.label.includes('['))) ||
+          qText.includes('kompleks') || qText.includes('lebih dari satu') || qText.includes('dua atau tiga');
+      }
+      if (bentukSoal.includes('Pilihan Ganda')) {
+        return q.options && q.options.length > 0 && !q.options.some((o) => o.label.includes('['));
+      }
+      if (bentukSoal.includes('Benar')) {
+        return q.embeddedTable && qText.includes('benar');
+      }
+      if (bentukSoal.includes('Jodoh')) {
+        return q.embeddedTable && qText.includes('jodoh');
+      }
+      return !q.options || q.options.length === 0;
+    };
+
+    const questionsOfThisType = allQuestions.filter(isThisType);
+    const targetQ = allQuestions.find((q, idx) => (q.number || idx + 1) === qNum);
+    const relativeIdx = targetQ ? questionsOfThisType.indexOf(targetQ) + 1 : -1;
+
+    if (relativeIdx > 0) {
+      let inTargetTypeSection = false;
+      const typeKeyword = bentukSoal.includes('Kompleks')
+        ? 'kompleks'
+        : bentukSoal.includes('Pilihan Ganda')
+        ? 'pilihan ganda'
+        : bentukSoal.includes('Benar')
+        ? 'benar'
+        : bentukSoal.includes('Jodoh')
+        ? 'jodoh'
+        : 'uraian';
+
+      for (let k = 0; k < kunciItems.length; k++) {
+        const kItem = kunciItems[k];
+        const textLower = (kItem.text || '').toLowerCase();
+
+        if (textLower.includes(typeKeyword) && !textLower.match(/^\d+[\.\)]/)) {
+          inTargetTypeSection = true;
+          continue;
+        } else if (inTargetTypeSection && (textLower.includes('uraian') || textLower.includes('pilihan ganda') || textLower.includes('menjodohkan') || textLower.includes('benar')) && !textLower.includes(typeKeyword)) {
+          inTargetTypeSection = false;
+        }
+
+        if (inTargetTypeSection && kItem.text) {
+          const relRegex = new RegExp(`(^|\\b)(${relativeIdx}[\\.\\)]|nomor\\s*${relativeIdx}\\b)`, 'i');
+          if (relRegex.test(kItem.text)) {
+            return cleanMarkdown(kItem.text).replace(/[\r\n]+/g, ' dan ');
+          }
+        }
+      }
+    }
+  }
+
+  // 4. Default fallback when not found in parsed output:
   const isPgKompleks = bentukSoal.toLowerCase().includes('kompleks');
   if (isPgKompleks) {
-    return `Kunci Jawaban PG Kompleks: Memilih minimal 2 opsi yang benar (contoh: [A] dan [C] sesuai stimulus materi ${materi}). Pedoman Penskoran: Memilih semua opsi benar dengan tepat = skor 2; memilih sebagian benar = skor 1; salah/kosong = skor 0.`;
+    return `Kunci Jawaban PG Kompleks butir ${qNum}: Memilih minimal 2 opsi yang benar sesuai stimulus materi ${materi}. Pedoman Penskoran: Memilih semua opsi benar dengan tepat = skor 2; memilih sebagian benar = skor 1; salah/kosong = skor 0.`;
   } else if (bentukSoal.toLowerCase().includes('pilihan ganda')) {
-    return `Kunci jawaban pilihan ganda mengacu pada pemahaman konsep materi ${materi}. Pedoman Penskoran: Jawaban benar skor 1, salah/kosong skor 0.`;
+    return `Kunci jawaban pilihan ganda butir nomor ${qNum} mengacu pada pemahaman konsep materi ${materi}. Pedoman Penskoran: Jawaban benar skor 1, salah/kosong skor 0.`;
   } else if (bentukSoal.toLowerCase().includes('benar')) {
-    return `Kunci kesesuaian nilai Benar (B) atau Salah (S) pernyataan materi ${materi}. Pedoman Penskoran: Tiap pernyataan tepat skor 1 (Skor maksimal = 3).`;
+    return `Kunci kesesuaian nilai Benar (B) atau Salah (S) butir nomor ${qNum} materi ${materi}. Pedoman Penskoran: Tiap pernyataan tepat skor 1 (Skor maksimal = 3).`;
   } else if (bentukSoal.toLowerCase().includes('jodoh')) {
-    return `Pasangan tepat antara premis kolom kiri dengan respon kolom kanan materi ${materi}. Pedoman Penskoran: Tiap pasangan tepat skor 1 (Skor maksimal = 4).`;
+    return `Pasangan tepat antara premis kolom kiri dengan respon kolom kanan butir nomor ${qNum} materi ${materi}. Pedoman Penskoran: Tiap pasangan tepat skor 1 (Skor maksimal = 4).`;
   } else {
-    return `Kunci jawaban uraian komprehensif mengacu pada materi ${materi}. Pedoman Penskoran: Lengkap & sistematis skor 4, cukup skor 3, kurang skor 2, minimal skor 1, kosong skor 0.`;
+    return `Kunci jawaban uraian komprehensif butir nomor ${qNum} materi ${materi}. Pedoman Penskoran: Lengkap & sistematis skor 4, cukup skor 3, kurang skor 2, minimal skor 1, kosong skor 0.`;
   }
 }
 
@@ -1197,9 +1476,20 @@ function renderKartuSoalCards(
     soalContentParagraphs.push(
       new Paragraph({
         spacing: { before: 30, after: 20, line: 240 },
+        alignment: AlignmentType.JUSTIFIED,
+        indent: { left: 400, hanging: 400 },
+        tabStops: [{ type: TabStopType.LEFT, position: 400 }],
         children: [
           new TextRun({
-            text: `${qNum}. ${cleanMarkdown(q.questionText || '')}`,
+            text: `${qNum}.`,
+            font: 'Times New Roman',
+            size: 21,
+          }),
+          new TextRun({
+            children: [new Tab()],
+          }),
+          new TextRun({
+            text: cleanMarkdown(q.questionText || ''),
             font: 'Times New Roman',
             size: 21,
           }),
@@ -1210,15 +1500,26 @@ function renderKartuSoalCards(
     // Options jika ada
     if (q.options && q.options.length > 0) {
       q.options.forEach((opt) => {
+        const rawLabel = (opt.label || '').trim();
+        const isPgk = rawLabel.startsWith('[');
+        const cleanLabel = rawLabel.endsWith('.') || rawLabel.endsWith(']') ? rawLabel : `${rawLabel}.`;
+        const leftIndent = isPgk ? 950 : 800;
+        const hangingIndent = isPgk ? 550 : 400; // both align the label at 400 twips
+
         soalContentParagraphs.push(
           new Paragraph({
             spacing: { before: 0, after: 10, line: 240 },
-            indent: { left: 360, hanging: 360 },
+            alignment: AlignmentType.JUSTIFIED,
+            indent: { left: leftIndent, hanging: hangingIndent },
+            tabStops: [{ type: TabStopType.LEFT, position: leftIndent }],
             children: [
               new TextRun({
-                text: `${opt.label} `,
+                text: cleanLabel,
                 font: 'Times New Roman',
                 size: 21,
+              }),
+              new TextRun({
+                children: [new Tab()],
               }),
               new TextRun({
                 text: cleanMarkdown(opt.text),
@@ -1503,13 +1804,17 @@ function renderGenericItems(
         new Paragraph({
           spacing: { before: spacingBeforeTwips, after: 20, line: 240 },
           alignment: AlignmentType.JUSTIFIED,
-          indent: { left: 360, hanging: 360 },
+          indent: { left: 450, hanging: 450 },
+          tabStops: [{ type: TabStopType.LEFT, position: 450 }],
           children: [
             new TextRun({
-              text: `${item.number}. `,
+              text: `${item.number}.`,
               bold: false,
               font: 'Times New Roman',
               size: 22,
+            }),
+            new TextRun({
+              children: [new Tab()],
             }),
             new TextRun({
               text: cleanMarkdown(item.questionText || ''),
@@ -1559,16 +1864,27 @@ function renderGenericItems(
 
       if (item.options && item.options.length > 0) {
         item.options.forEach((opt) => {
+          const rawLabel = (opt.label || '').trim();
+          const isPgk = rawLabel.startsWith('[');
+          const cleanLabel = rawLabel.endsWith('.') || rawLabel.endsWith(']') ? rawLabel : `${rawLabel}.`;
+          const leftIndent = isPgk ? 1050 : 900;
+          const hangingIndent = isPgk ? 600 : 450; // both align the label at 450 twips
+
           docChildren.push(
             new Paragraph({
               spacing: { before: 0, after: 0, line: 240 },
-              indent: { left: 720, hanging: 360 },
+              alignment: AlignmentType.JUSTIFIED,
+              indent: { left: leftIndent, hanging: hangingIndent },
+              tabStops: [{ type: TabStopType.LEFT, position: leftIndent }],
               children: [
                 new TextRun({
-                  text: `${opt.label} `,
+                  text: cleanLabel,
                   bold: false,
                   font: 'Times New Roman',
                   size: 22,
+                }),
+                new TextRun({
+                  children: [new Tab()],
                 }),
                 new TextRun({
                   text: cleanMarkdown(opt.text),
@@ -1705,18 +2021,7 @@ function renderFallbackKisiKisi(
 
   questions.forEach((q, qIdx) => {
     const qNum = q.number || qIdx + 1;
-    let bentukSoal = 'Pilihan Ganda';
-    if (q.options && q.options.length > 0) {
-      if (q.options.some((o) => o.label.includes('['))) bentukSoal = 'PG Kompleks';
-      else bentukSoal = 'Pilihan Ganda';
-    } else if (q.embeddedTable && q.embeddedTable.length > 0) {
-      const textLower = (q.questionText || '').toLowerCase();
-      if (textLower.includes('benar') || textLower.includes('salah')) bentukSoal = 'Benar-Salah';
-      else if (textLower.includes('jodoh')) bentukSoal = 'Menjodohkan';
-      else bentukSoal = 'Isian Singkat';
-    } else {
-      bentukSoal = 'Uraian';
-    }
+    const bentukSoal = normalizeQuestionType(undefined, q);
 
     const qIndexInAll = parsedItems.indexOf(q);
     let precedingStimulus: ParsedItem | null = null;
@@ -1798,53 +2103,48 @@ function renderFallbackKunciSkor(
   });
 
   const rows: TableRow[] = [headerRow];
+  const kunciItems = parsedItems.filter((i) => i.section === 'kunci_skor');
 
   questions.forEach((q, qIdx) => {
     const qNum = q.number || qIdx + 1;
-    let bentukSoal = 'Pilihan Ganda';
-    let kunciDesc = 'Kunci jawaban mengacu pada materi terkait.';
-    let rubrikDesc = 'Jawaban benar skor 1, salah skor 0.';
+    const bentukSoal = normalizeQuestionType(undefined, q);
+    let rubrikDesc = 'Jawaban benar skor 1, salah/kosong skor 0.';
 
-    if (q.options && q.options.length > 0) {
-      const qText = (q.questionText || '').toLowerCase();
-      const hasPgkOption = q.options.some((o) => o.label.includes('['));
-      const hasPgkKeyword =
-        qText.includes('kompleks') ||
-        qText.includes('lebih dari satu') ||
-        qText.includes('dua atau tiga') ||
-        qText.includes('pilihlah dua') ||
-        qText.includes('pilihlah 2') ||
-        qText.includes('pilihlah 3');
-
-      if (hasPgkOption || hasPgkKeyword) {
-        bentukSoal = 'PG Kompleks';
-        kunciDesc = 'Kunci PG Kompleks: Memilih lebih dari satu opsi benar (contoh: [A] dan [C]).';
-        rubrikDesc = 'Benar lengkap = 2; Benar sebagian = 1; Salah/kosong = 0.';
-      } else {
-        bentukSoal = 'Pilihan Ganda';
-        kunciDesc = `Pilihan ganda opsi jawaban terbaik untuk butir nomor ${qNum}.`;
-        rubrikDesc = 'Benar = 1; Salah/kosong = 0.';
-      }
-    } else if (q.embeddedTable && q.embeddedTable.length > 0) {
-      const textLower = (q.questionText || '').toLowerCase();
-      if (textLower.includes('benar') || textLower.includes('salah')) {
-        bentukSoal = 'Benar-Salah';
-        kunciDesc = 'Kunci kesesuaian nilai Benar (B) atau Salah (S) pada tabel pernyataan.';
-        rubrikDesc = 'Tiap pernyataan bernilai tepat = 1 (Skor maksimal = 3).';
-      } else if (textLower.includes('jodoh')) {
-        bentukSoal = 'Menjodohkan';
-        kunciDesc = 'Pasangan premis kolom kiri dengan pilihan respons kolom kanan.';
-        rubrikDesc = 'Tiap pasangan tepat = 1 (Skor maksimal = 4).';
-      } else {
-        bentukSoal = 'Isian Singkat';
-        kunciDesc = 'Isian jawaban singkat (maksimal 2 kata).';
-        rubrikDesc = 'Benar & tepat = 2; Kurang tepat = 1; Salah = 0.';
-      }
-    } else {
-      bentukSoal = 'Uraian';
-      kunciDesc = `Jawaban uraian komprehensif pemecahan masalah butir nomor ${qNum}.`;
+    if (bentukSoal === 'PG Kompleks') {
+      rubrikDesc = 'Benar lengkap = 2; Benar sebagian = 1; Salah/kosong = 0.';
+    } else if (bentukSoal === 'Benar-Salah') {
+      rubrikDesc = 'Tiap pernyataan bernilai tepat = 1 (Skor maksimal = 3).';
+    } else if (bentukSoal === 'Menjodohkan') {
+      rubrikDesc = 'Tiap pasangan tepat = 1 (Skor maksimal = 4).';
+    } else if (bentukSoal === 'Uraian') {
       rubrikDesc = 'Lengkap & logis = 4; Cukup = 3; Kurang = 2; Minimal = 1; Kosong = 0.';
     }
+
+    const qIndexInAll = parsedItems.indexOf(q);
+    let precedingStimulus: ParsedItem | null = null;
+    if (qIndexInAll > 0) {
+      for (let sIdx = qIndexInAll - 1; sIdx >= 0; sIdx--) {
+        if (parsedItems[sIdx].type === 'stimulus') {
+          precedingStimulus = parsedItems[sIdx];
+          break;
+        }
+      }
+    }
+
+    const resolved = resolveQuestionCapaianAndMateri(
+      qNum,
+      undefined,
+      precedingStimulus,
+      identity.mapel
+    );
+
+    const kunciDesc = extractAnswerKeyForQuestion(
+      qNum,
+      kunciItems,
+      bentukSoal,
+      resolved.materi,
+      parsedItems
+    );
 
     rows.push(
       new TableRow({
@@ -1932,36 +2232,6 @@ function renderFallbackMateriEsensial(
 
   questions.forEach((q, qIdx) => {
     const qNum = q.number || qIdx + 1;
-    let jenisSoal = 'Pilihan Ganda';
-    if (q.options && q.options.length > 0) {
-      const qText = (q.questionText || '').toLowerCase();
-      const hasPgkOption = q.options.some((o) => o.label.includes('['));
-      const hasPgkKeyword =
-        qText.includes('kompleks') ||
-        qText.includes('lebih dari satu') ||
-        qText.includes('dua atau tiga') ||
-        qText.includes('pilihlah dua') ||
-        qText.includes('pilihlah 2') ||
-        qText.includes('pilihlah 3');
-
-      if (hasPgkOption || hasPgkKeyword) {
-        jenisSoal = 'PG Kompleks';
-      } else {
-        jenisSoal = 'Pilihan Ganda';
-      }
-    } else if (q.embeddedTable && q.embeddedTable.length > 0) {
-      const textLower = (q.questionText || '').toLowerCase();
-      if (textLower.includes('benar') || textLower.includes('salah')) {
-        jenisSoal = 'Benar - Salah';
-      } else if (textLower.includes('jodoh')) {
-        jenisSoal = 'Menjodohkan';
-      } else {
-        jenisSoal = 'Isian / Tabel';
-      }
-    } else {
-      jenisSoal = 'Uraian';
-    }
-
     const qIndexInAll = parsedItems.indexOf(q);
     let precedingStimulus: ParsedItem | null = null;
     if (qIndexInAll > 0) {
@@ -1977,8 +2247,12 @@ function renderFallbackMateriEsensial(
       qNum,
       options?.packets,
       precedingStimulus,
-      identity.mapel
+      identity.mapel,
+      parsedItems,
+      q
     );
+
+    const finalJenis = normalizeQuestionType(resolved.jenisSoal, q);
 
     rows.push(
       new TableRow({
@@ -1987,7 +2261,7 @@ function renderFallbackMateriEsensial(
           createTableCell(resolved.capaian, 26, false, cellBorders),
           createTableCell(resolved.tujuan, 28, false, cellBorders),
           createTableCell(resolved.uraianMateri, 24, false, cellBorders),
-          createTableCell(jenisSoal, 14, false, cellBorders, undefined, AlignmentType.CENTER),
+          createTableCell(finalJenis, 14, false, cellBorders, undefined, AlignmentType.CENTER),
         ],
       })
     );

@@ -49,10 +49,11 @@ app.post('/api/generate-exam', async (req: Request, res: Response) => {
       config: {
         systemInstruction: `Anda adalah asisten pakar kurikulum dan ahli penyusun instrumen asesmen pembelajaran standar Kurikulum Merdeka di Indonesia. 
 Ikuti seluruh aturan penulisan, struktur tata letak, format butir soal, penomoran manual murni, label kurung siku [A][B][C][D] untuk PG Kompleks, serta format tabel khusus untuk Benar-Salah dan Menjodohkan persis sesuai instruksi dalam prompt.
+PENTING KHUSUS KUNCI JAWABAN & RUBRIK: Nomor pada Kunci Jawaban WAJIB ditulis berurutan nomor 1 sampai selesai secara sekuensial (1, 2, 3, dst.) persis sesuai nomor butir soal pada naskah ujian. DILARANG MERESET penomoran menjadi 1 pada tiap kelompok atau jenis soal (misal jika soal PG nomor 1, 7, 13 maka kuncinya bernomor 1, 7, 13).
 PENTING KHUSUS KUNCI PG KOMPLEKS: Pada Kunci Jawaban PG Kompleks, tuliskan seluruh pilihan kunci jawaban benar dalam satu baris yang sama sejajar (contoh: "2. Kunci: [A] dan [B]" atau "2. A dan B"), jangan memecah huruf kunci ke baris berikutnya.
+PENTING KHUSUS MATERI ESENSIAL: Sajikan Tabel Materi Esensial 5 kolom (| No Soal | Capaian Pembelajaran | Tujuan Pembelajaran | Uraian Materi | Jenis Soal |) secara mendalam, ilmiah, dan otentik untuk tiap-tiap butir soal, DILARANG menggunakan kalimat template berulang.
 PENTING & WAJIB: Jangan pernah mengosongkan, memotong, atau menghentikan respon sebelum seluruh lampiran kelengkapan (Kunci Jawaban & Pedoman Penskoran, Kisi-Kisi Soal dalam tabel Markdown, Kartu Soal Resmi, dan Rangkuman Materi Esensial) tersusun secara lengkap, utuh, dan tuntas sampai akhir.
 Sajikan naskah soal yang berkualitas tinggi, valid, mendalam, bebas kesalahan ketik, dan ramah untuk langsung disalin ke Microsoft Word.`,
-        temperature: 0.7,
         maxOutputTokens: 8192,
       },
     });
@@ -75,7 +76,7 @@ Sajikan naskah soal yang berkualitas tinggi, valid, mendalam, bebas kesalahan ke
   }
 });
 
-// Endpoint to generate finished stimulus images ("gambar jadi") from text prompts
+// Endpoint to generate finished stimulus images ("gambar jadi") from text prompts using SVG diagrams
 app.post('/api/generate-stimulus-image', async (req: Request, res: Response) => {
   const { prompt, title, subject } = req.body;
 
@@ -83,38 +84,7 @@ app.post('/api/generate-stimulus-image', async (req: Request, res: Response) => 
     return res.status(400).json({ error: 'Prompt deskripsi gambar diperlukan' });
   }
 
-  // First strategy: Try Gemini Flash image generation
-  try {
-    const imageResp = await ai.models.generateContent({
-      model: 'gemini-3.1-flash-lite-image',
-      contents: {
-        parts: [
-          {
-            text: `High-resolution educational diagram or scientific illustration for an Indonesian school test paper: ${prompt}. Clean white background, high contrast, crisp lines, textbook clarity, no watermark, no extraneous borders. Context: ${title || subject || 'Ujian Sekolah'}.`,
-          },
-        ],
-      },
-      config: {
-        imageConfig: {
-          aspectRatio: '4:3',
-        },
-      },
-    });
-
-    for (const part of imageResp.candidates?.[0]?.content?.parts || []) {
-      if (part.inlineData && part.inlineData.data) {
-        const mime = part.inlineData.mimeType || 'image/png';
-        return res.json({
-          imageUrl: `data:${mime};base64,${part.inlineData.data}`,
-          source: 'ai-image-model',
-        });
-      }
-    }
-  } catch (imgError: any) {
-    console.warn('Image model note (falling back to Gemini SVG diagram generator):', imgError?.message || imgError);
-  }
-
-  // Second strategy: Use gemini-3.8-flash to generate a custom, precise, high-contrast SVG educational diagram
+  // Use gemini-3.8-flash to generate a custom, precise, high-contrast SVG educational diagram
   try {
     const svgPrompt = `Anda adalah ahli grafis edukasi dan kurikulum sains/matematika/sosial Indonesia.
 Buatlah kode SVG (Scalable Vector Graphics) lengkap, presisi, dan siap pakai untuk menggambarkan stimulus soal ujian berikut:
@@ -132,9 +102,6 @@ KETENTUAN SVG:
     const svgResp = await ai.models.generateContent({
       model: 'gemini-3.8-flash',
       contents: svgPrompt,
-      config: {
-        temperature: 0.2,
-      },
     });
 
     const outputText = svgResp.text || '';
@@ -149,7 +116,7 @@ KETENTUAN SVG:
 
     return res.status(500).json({ error: 'Gagal mengekstrak format visual diagram' });
   } catch (error: any) {
-    console.error('Error generating stimulus image:', error);
+    console.error('Error generating stimulus image:', error?.message || error);
     return res.status(500).json({
       error: error?.message || 'Gagal menghasilkan gambar jadi dengan AI',
     });

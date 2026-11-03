@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { HelpCircle, ChevronDown, ChevronUp, FileText, Sparkles, CheckCircle2 } from 'lucide-react';
+import { BatikCornerFlourish } from './BatikDecorations';
 
 export const UserGuide: React.FC = () => {
   const [isOpen, setIsOpen] = useState(true);
 
   return (
-    <div className="bg-slate-800/90 p-5 md:p-6 rounded-2xl shadow-xl mb-8 border-2 border-indigo-500/80 transition-all">
+    <div className="relative overflow-hidden bg-slate-800/90 p-5 md:p-6 rounded-2xl shadow-xl mb-8 border-2 border-indigo-500/80 transition-all">
+      <BatikCornerFlourish position="top-right" />
       <div 
         className="flex items-center justify-between cursor-pointer select-none"
         onClick={() => setIsOpen(!isOpen)}

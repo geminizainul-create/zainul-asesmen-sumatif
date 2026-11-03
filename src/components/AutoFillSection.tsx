@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Zap, Eye, EyeOff, Sparkles, CheckCircle2 } from 'lucide-react';
 import { RecommendationRow } from '../types/assessment';
+import { BatikCornerFlourish, BatikKawungIcon } from './BatikDecorations';
 
 interface AutoFillSectionProps {
   materiText: string;
@@ -27,10 +28,12 @@ export const AutoFillSection: React.FC<AutoFillSectionProps> = ({
   };
 
   return (
-    <div className="bg-gradient-to-r from-indigo-950/70 via-slate-800 to-indigo-950/70 p-5 md:p-6 rounded-2xl shadow-xl mb-8 border border-indigo-500/50">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+    <div className="relative overflow-hidden bg-gradient-to-r from-indigo-950/70 via-slate-800 to-indigo-950/70 p-5 md:p-6 rounded-2xl shadow-xl mb-8 border border-indigo-500/50">
+      <BatikCornerFlourish position="top-right" />
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3 relative z-10">
         <h2 className="text-base md:text-lg font-bold text-indigo-300 flex items-center gap-2">
-          <span className="bg-indigo-500 text-white text-[11px] px-2.5 py-0.5 rounded-full font-mono tracking-wider font-semibold">
+          <span className="bg-indigo-500 text-white text-[11px] px-2.5 py-0.5 rounded-full font-mono tracking-wider font-semibold inline-flex items-center gap-1">
+            <BatikKawungIcon size={12} className="text-amber-300" />
             FITUR OTOMATIS
           </span>
           Pengisian Otomatis Paket Soal (Auto-Fill)

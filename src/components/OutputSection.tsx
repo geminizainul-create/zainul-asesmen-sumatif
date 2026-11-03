@@ -1,5 +1,6 @@
 import React from 'react';
 import { Copy, Check, Sparkles, FileText, Download, Printer, RefreshCw, SlidersHorizontal } from 'lucide-react';
+import { BatikCornerFlourish } from './BatikDecorations';
 
 interface OutputSectionProps {
   promptText: string;
@@ -31,8 +32,9 @@ export const OutputSection: React.FC<OutputSectionProps> = ({
   return (
     <div
       id="output-section"
-      className="mt-10 bg-slate-800 rounded-3xl shadow-2xl border border-slate-700/80 overflow-hidden transition-all"
+      className="relative overflow-hidden mt-10 bg-slate-800 rounded-3xl shadow-2xl border border-slate-700/80 transition-all"
     >
+      <BatikCornerFlourish position="top-right" />
       {/* Tab Navigation Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 md:p-6 bg-slate-700/50 border-b border-slate-600/80 gap-3">
         <div className="flex items-center gap-2 bg-slate-900/80 p-1 rounded-xl border border-slate-700">

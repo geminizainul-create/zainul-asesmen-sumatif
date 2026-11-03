@@ -10,6 +10,19 @@
   }
 }
 
+/* Authentic Indonesian Batik Kawung Motif Patterns */
+.bg-batik-kawung {
+  background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='%23818cf8' stroke-width='0.9' stroke-opacity='0.05'%3E%3Cellipse cx='30' cy='18' rx='7' ry='12'/%3E%3Cellipse cx='30' cy='42' rx='7' ry='12'/%3E%3Cellipse cx='18' cy='30' rx='12' ry='7'/%3E%3Cellipse cx='42' cy='30' rx='12' ry='7'/%3E%3Ccircle cx='30' cy='30' r='2.5' fill='%23fbbf24' fill-opacity='0.08'/%3E%3Ccircle cx='0' cy='0' r='2' fill='%23fbbf24' fill-opacity='0.06'/%3E%3Ccircle cx='60' cy='0' r='2' fill='%23fbbf24' fill-opacity='0.06'/%3E%3Ccircle cx='0' cy='60' r='2' fill='%23fbbf24' fill-opacity='0.06'/%3E%3Ccircle cx='60' cy='60' r='2' fill='%23fbbf24' fill-opacity='0.06'/%3E%3Cellipse cx='0' cy='30' rx='7' ry='12'/%3E%3Cellipse cx='60' cy='30' rx='7' ry='12'/%3E%3Cellipse cx='30' cy='0' rx='12' ry='7'/%3E%3Cellipse cx='30' cy='60' rx='12' ry='7'/%3E%3C/g%3E%3C/svg%3E");
+}
+
+.bg-batik-subtle {
+  background-image: url("data:image/svg+xml,%3Csvg width='80' height='80' viewBox='0 0 80 80' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='%23a5b4fc' stroke-width='0.8' stroke-opacity='0.035'%3E%3Cellipse cx='40' cy='22' rx='8' ry='15'/%3E%3Cellipse cx='40' cy='58' rx='8' ry='15'/%3E%3Cellipse cx='22' cy='40' rx='15' ry='8'/%3E%3Cellipse cx='58' cy='40' rx='15' ry='8'/%3E%3Ccircle cx='40' cy='40' r='3.5' fill='%23f59e0b' fill-opacity='0.07'/%3E%3Cellipse cx='40' cy='24' rx='3.5' ry='7' stroke-opacity='0.02'/%3E%3Cellipse cx='40' cy='56' rx='3.5' ry='7' stroke-opacity='0.02'/%3E%3Cellipse cx='24' cy='40' rx='7' ry='3.5' stroke-opacity='0.02'/%3E%3Cellipse cx='56' cy='40' rx='7' ry='3.5' stroke-opacity='0.02'/%3E%3C/g%3E%3C/svg%3E");
+}
+
+.batik-accent-border {
+  border-image: linear-gradient(90deg, rgba(99, 102, 241, 0.4) 0%, rgba(245, 158, 11, 0.5) 50%, rgba(99, 102, 241, 0.4) 100%) 1;
+}
+
 /* Print styling strictly for F4 Paper (210mm x 330mm) */
 @page {
   size: 210mm 330mm;

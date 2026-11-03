@@ -40,6 +40,7 @@ import {
   cleanMarkdown,
   resolveQuestionCapaianAndMateri,
   extractAnswerKeyForQuestion,
+  normalizeQuestionType,
 } from '../utils/docxExporter';
 import { formatMathToCleanText } from '../utils/mathFormatter';
 import {
@@ -48,6 +49,7 @@ import {
   findBestMatchingDiagram,
   generateFallbackSvgDiagram,
 } from '../utils/educationalDiagrams';
+import { BatikKawungIcon } from './BatikDecorations';
 
 interface DocumentFormatModalProps {
   isOpen: boolean;
@@ -550,7 +552,8 @@ export const DocumentFormatModal: React.FC<DocumentFormatModalProps> = ({
                 <h2 className="font-bold text-base md:text-lg text-white">
                   Format Dokumen Resmi F4 (210×330mm)
                 </h2>
-                <span className="text-[10px] font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-400/30 px-2 py-0.5 rounded-full">
+                <span className="text-[10px] font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-400/30 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                  <BatikKawungIcon size={11} className="text-amber-400" />
                   Soal + Gambar Jadi &amp; Word Siap Cetak
                 </span>
               </div>
@@ -1578,7 +1581,7 @@ export const DocumentFormatModal: React.FC<DocumentFormatModalProps> = ({
             </div>
 
             {/* Preview Sheet Container */}
-            <div className="bg-slate-950/80 rounded-xl p-4 overflow-y-auto max-h-[780px] flex justify-center border border-slate-800 shadow-inner">
+            <div className="bg-slate-950/80 bg-batik-subtle rounded-xl p-4 overflow-y-auto max-h-[780px] flex justify-center border border-slate-800 shadow-inner">
               <div
                 className="origin-top transition-transform duration-150"
                 style={{ transform: `scale(${zoom})` }}
@@ -1823,18 +1826,7 @@ export const DocumentFormatModal: React.FC<DocumentFormatModalProps> = ({
                                   }
                                 }
                               }
-                              let bentukSoal = 'Pilihan Ganda';
-                              if (q.options && q.options.length > 0) {
-                                if (q.options.some((o) => o.label.includes('['))) bentukSoal = 'PG Kompleks';
-                                else bentukSoal = 'Pilihan Ganda';
-                              } else if (q.embeddedTable && q.embeddedTable.length > 0) {
-                                const t = (q.questionText || '').toLowerCase();
-                                if (t.includes('benar') || t.includes('salah')) bentukSoal = 'Benar-Salah';
-                                else if (t.includes('jodoh')) bentukSoal = 'Menjodohkan';
-                                else bentukSoal = 'Isian Singkat';
-                              } else {
-                                bentukSoal = 'Uraian';
-                              }
+                              const bentukSoal = normalizeQuestionType(undefined, q);
                               const resolved = resolveQuestionCapaianAndMateri(
                                 qNum,
                                 packets,
@@ -1859,58 +1851,69 @@ export const DocumentFormatModal: React.FC<DocumentFormatModalProps> = ({
                           </tbody>
                         </table>
                       </div>
-                    ) : previewTab === 'kunci_skor' && parsedItems.filter((it) => it.section === 'kunci_skor').length === 0 ? (
+                    ) : previewTab === 'kunci_skor' ? (
                       <div className="space-y-3 font-serif text-[10pt]">
                         <div className="bg-slate-100 border border-black p-2 font-bold text-center text-[10.5pt]">
-                          KUNCI JAWABAN DAN PEDOMAN PENSKORAN
+                          KUNCI JAWABAN DAN PEDOMAN PENSKORAN ASESMEN
                         </div>
                         <table className="border border-black border-collapse text-[9.5pt] w-full">
                           <thead>
                             <tr className="bg-slate-100 font-bold">
-                              <th className="border border-black p-1 text-center w-8">No</th>
+                              <th className="border border-black p-1 text-center w-10">No</th>
                               <th className="border border-black p-1 text-center w-28">Bentuk Soal</th>
-                              <th className="border border-black p-1 text-left">Kunci &amp; Pembahasan</th>
-                              <th className="border border-black p-1 text-left w-48">Pedoman Penskoran</th>
+                              <th className="border border-black p-1 text-left">Kunci Jawaban &amp; Pembahasan</th>
+                              <th className="border border-black p-1 text-left w-52">Pedoman Penskoran</th>
                             </tr>
                           </thead>
                           <tbody>
                             {parsedItems.filter((i) => i.type === 'question').map((q, qIdx) => {
                               const qNum = q.number || qIdx + 1;
-                              let bentukSoal = 'Pilihan Ganda';
-                              let kunciDesc = 'Kunci jawaban mengacu pada fakta stimulus.';
-                              let rubrikDesc = 'Jawaban benar = 1, salah = 0.';
-                              if (q.options && q.options.length > 0) {
-                                if (q.options.some((o) => o.label.includes('['))) {
-                                  bentukSoal = 'PG Kompleks';
-                                  kunciDesc = 'Memilih 2 atau 3 opsi benar sesuai stimulus.';
-                                  rubrikDesc = 'Benar lengkap = 2, sebagian = 1, salah = 0.';
-                                } else {
-                                  bentukSoal = 'Pilihan Ganda';
-                                  kunciDesc = `Opsi terbaik butir nomor ${qNum}.`;
-                                  rubrikDesc = 'Benar = 1, salah = 0.';
+                              const bentukSoal = normalizeQuestionType(undefined, q);
+
+                              const kunciItems = parsedItems.filter((i) => i.section === 'kunci_skor');
+                              const qIndexInAll = parsedItems.indexOf(q);
+                              let precedingStimulus: ParsedItem | null = null;
+                              if (qIndexInAll > 0) {
+                                for (let sIdx = qIndexInAll - 1; sIdx >= 0; sIdx--) {
+                                  if (parsedItems[sIdx].type === 'stimulus') {
+                                    precedingStimulus = parsedItems[sIdx];
+                                    break;
+                                  }
                                 }
-                              } else if (q.embeddedTable && q.embeddedTable.length > 0) {
-                                const t = (q.questionText || '').toLowerCase();
-                                if (t.includes('benar') || t.includes('salah')) {
-                                  bentukSoal = 'Benar-Salah';
-                                  kunciDesc = 'Kesesuaian nilai Benar (B) atau Salah (S).';
-                                  rubrikDesc = 'Tiap pernyataan bernilai tepat = 1 (maks = 3).';
-                                } else if (t.includes('jodoh')) {
-                                  bentukSoal = 'Menjodohkan';
-                                  kunciDesc = 'Pasangan premis kiri dengan respons kanan.';
-                                  rubrikDesc = 'Tiap pasangan tepat = 1 (maks = 4).';
-                                }
-                              } else {
-                                bentukSoal = 'Uraian';
-                                kunciDesc = `Uraian logis dan pemecahan masalah butir ${qNum}.`;
-                                rubrikDesc = 'Lengkap = 4; Cukup = 3; Kurang = 2; Minimal = 1.';
                               }
+
+                              const resolved = resolveQuestionCapaianAndMateri(
+                                qNum,
+                                packets,
+                                precedingStimulus,
+                                identity.mapel
+                              );
+
+                              const matchedKey = extractAnswerKeyForQuestion(
+                                qNum,
+                                kunciItems,
+                                bentukSoal,
+                                resolved.materi,
+                                parsedItems
+                              );
+
+                              let rubrikDesc = 'Jawaban benar = 1, salah/kosong = 0.';
+                              if (bentukSoal === 'PG Kompleks') {
+                                rubrikDesc = 'Benar lengkap = 2; Benar sebagian = 1; Salah/kosong = 0.';
+                              } else if (bentukSoal === 'Benar-Salah') {
+                                rubrikDesc = 'Tiap pernyataan bernilai tepat = 1 (maksimal = 3).';
+                              } else if (bentukSoal === 'Menjodohkan') {
+                                rubrikDesc = 'Tiap pasangan tepat = 1 (maksimal = 4).';
+                              } else if (bentukSoal === 'Uraian') {
+                                rubrikDesc = 'Lengkap & logis = 4; Cukup = 3; Kurang = 2; Minimal = 1; Kosong = 0.';
+                              }
+
                               return (
                                 <tr key={qIdx}>
                                   <td className="border border-black p-1 text-center font-bold">{qNum}</td>
                                   <td className="border border-black p-1 text-center">{bentukSoal}</td>
-                                  <td className="border border-black p-1">{kunciDesc}</td>
-                                  <td className="border border-black p-1">{rubrikDesc}</td>
+                                  <td className="border border-black p-1">{cleanMarkdown(matchedKey)}</td>
+                                  <td className="border border-black p-1 text-[9pt]">{rubrikDesc}</td>
                                 </tr>
                               );
                             })}
@@ -1945,42 +1948,16 @@ export const DocumentFormatModal: React.FC<DocumentFormatModalProps> = ({
                                   }
                                 }
                               }
-                              let jenisSoal = 'Pilihan Ganda';
-                              if (q.options && q.options.length > 0) {
-                                const qText = (q.questionText || '').toLowerCase();
-                                const hasPgkOption = q.options.some((o) => o.label.includes('['));
-                                const hasPgkKeyword =
-                                  qText.includes('kompleks') ||
-                                  qText.includes('lebih dari satu') ||
-                                  qText.includes('dua atau tiga') ||
-                                  qText.includes('pilihlah dua') ||
-                                  qText.includes('pilihlah 2') ||
-                                  qText.includes('pilihlah 3');
-
-                                if (hasPgkOption || hasPgkKeyword) {
-                                  jenisSoal = 'PG Kompleks';
-                                } else {
-                                  jenisSoal = 'Pilihan Ganda';
-                                }
-                              } else if (q.embeddedTable && q.embeddedTable.length > 0) {
-                                const textLower = (q.questionText || '').toLowerCase();
-                                if (textLower.includes('benar') || textLower.includes('salah')) {
-                                  jenisSoal = 'Benar - Salah';
-                                } else if (textLower.includes('jodoh')) {
-                                  jenisSoal = 'Menjodohkan';
-                                } else {
-                                  jenisSoal = 'Isian / Tabel';
-                                }
-                              } else {
-                                jenisSoal = 'Uraian';
-                              }
-
                               const resolved = resolveQuestionCapaianAndMateri(
                                 qNum,
                                 packets,
                                 precedingStimulus,
-                                identity.mapel
+                                identity.mapel,
+                                parsedItems,
+                                q
                               );
+
+                              const finalJenis = normalizeQuestionType(resolved.jenisSoal, q);
 
                               return (
                                 <tr key={qIdx}>
@@ -1988,7 +1965,7 @@ export const DocumentFormatModal: React.FC<DocumentFormatModalProps> = ({
                                   <td className="border border-black p-1">{resolved.capaian}</td>
                                   <td className="border border-black p-1">{resolved.tujuan}</td>
                                   <td className="border border-black p-1">{resolved.uraianMateri}</td>
-                                  <td className="border border-black p-1 text-center">{jenisSoal}</td>
+                                  <td className="border border-black p-1 text-center">{finalJenis}</td>
                                 </tr>
                               );
                             })}
@@ -1998,6 +1975,8 @@ export const DocumentFormatModal: React.FC<DocumentFormatModalProps> = ({
                     ) : (
                       (previewTab === 'soal'
                         ? parsedItems.filter((it) => !it.section || it.section === 'soal')
+                        : previewTab === 'kisi_kisi'
+                        ? parsedItems.filter((it) => it.section === 'kisi_kisi')
                         : parsedItems
                       ).map((item, idx) => {
                         if (item.type === 'stimulus') {
@@ -2074,11 +2053,11 @@ export const DocumentFormatModal: React.FC<DocumentFormatModalProps> = ({
                               style={{ marginTop: `${settings.spacingBetween}pt` }}
                               className="leading-normal font-normal text-black"
                             >
-                              <div className="flex items-start gap-1">
-                                <span className="font-normal w-6 shrink-0 text-right pr-1">
+                              <div className="flex items-start gap-1.5">
+                                <span className="font-normal w-7 shrink-0 text-right pr-1">
                                   {item.number}.
                                 </span>
-                                <div className="flex-1 font-normal text-black">
+                                <div className="flex-1 font-normal text-black text-justify">
                                   {item.questionText}
                                 </div>
                               </div>
@@ -2112,16 +2091,21 @@ export const DocumentFormatModal: React.FC<DocumentFormatModalProps> = ({
                               {/* Options */}
                               {item.options && item.options.length > 0 && (
                                 <div className="ml-7 mt-0.5 space-y-0.5">
-                                  {item.options.map((opt, oIdx) => (
-                                    <div key={oIdx} className="flex items-start gap-2">
-                                      <span className="font-normal w-6 shrink-0">
-                                        {opt.label.endsWith('.') || opt.label.endsWith(']') ? opt.label : `${opt.label}.`}
-                                      </span>
-                                      <span className="flex-1 font-normal text-black">
-                                        {opt.text}
-                                      </span>
-                                    </div>
-                                  ))}
+                                  {item.options.map((opt, oIdx) => {
+                                    const isPgk = opt.label.startsWith('[');
+                                    const cleanLabel =
+                                      opt.label.endsWith('.') || opt.label.endsWith(']') ? opt.label : `${opt.label}.`;
+                                    return (
+                                      <div key={oIdx} className="flex items-start gap-1.5">
+                                        <span className={`font-normal shrink-0 ${isPgk ? 'w-8' : 'w-6'}`}>
+                                          {cleanLabel}
+                                        </span>
+                                        <span className="flex-1 font-normal text-black text-justify">
+                                          {opt.text}
+                                        </span>
+                                      </div>
+                                    );
+                                  })}
                                 </div>
                               )}
                             </div>

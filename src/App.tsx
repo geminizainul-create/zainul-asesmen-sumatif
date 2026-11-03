@@ -8,6 +8,7 @@ import { SummaryAndOutputOptions } from './components/SummaryAndOutputOptions';
 import { OutputSection } from './components/OutputSection';
 import { DocumentFormatModal } from './components/DocumentFormatModal';
 import { Toast } from './components/Toast';
+import { BatikDivider, BatikKawungIcon } from './components/BatikDecorations';
 import {
   GeneralInfo,
   KelengkapanType,
@@ -398,14 +399,16 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 antialiased selection:bg-indigo-600 selection:text-white">
-      <div className="container mx-auto px-4 py-8 md:py-12 max-w-5xl">
+    <div className="min-h-screen bg-slate-900 text-slate-100 antialiased selection:bg-indigo-600 selection:text-white bg-batik-kawung relative">
+      <div className="container mx-auto px-4 py-8 md:py-12 max-w-5xl relative z-10">
         {/* Header */}
         <Header
           onLoadPreset={handleLoadPreset}
           onReset={handleReset}
           onOpenFormatModal={() => handleOpenFormatModal()}
         />
+
+        <BatikDivider className="my-6 opacity-60" />
 
         {/* User Guide */}
         <UserGuide />
@@ -466,26 +469,31 @@ export default function App() {
 
         {/* Output Section */}
         {showOutputSection && (
-          <OutputSection
-            promptText={promptOutput}
-            aiGeneratedText={aiOutput}
-            isGeneratingAI={isGeneratingAI}
-            activeTab={activeOutputTab}
-            setActiveTab={setActiveOutputTab}
-            onCopyPrompt={handleCopyPrompt}
-            onCopyAIResult={handleCopyAIResult}
-            copiedPrompt={copiedPrompt}
-            copiedAIResult={copiedAI}
-            onRegenerateAI={handleGenerateAI}
-            onOpenFormatModal={handleOpenFormatModal}
-          />
+          <div id="output-section">
+            <BatikDivider className="my-8 opacity-60" />
+            <OutputSection
+              promptText={promptOutput}
+              aiGeneratedText={aiOutput}
+              isGeneratingAI={isGeneratingAI}
+              activeTab={activeOutputTab}
+              setActiveTab={setActiveOutputTab}
+              onCopyPrompt={handleCopyPrompt}
+              onCopyAIResult={handleCopyAIResult}
+              copiedPrompt={copiedPrompt}
+              copiedAIResult={copiedAI}
+              onRegenerateAI={handleGenerateAI}
+              onOpenFormatModal={handleOpenFormatModal}
+            />
+          </div>
         )}
 
         {/* Footer */}
         <footer className="text-center mt-14 mb-8 text-slate-500 text-xs md:text-sm">
           <p>© Developed by Zainul Bashori | 082331490484</p>
-          <p className="text-slate-600 text-[11px] mt-1">
-            Standar Instrumen Asesmen Pembelajaran Kurikulum Merdeka
+          <p className="text-slate-500 text-[11px] mt-1.5 flex items-center justify-center gap-1.5">
+            <BatikKawungIcon size={12} className="text-amber-500/70" />
+            <span>Standar Instrumen Asesmen Pembelajaran Kurikulum Merdeka</span>
+            <BatikKawungIcon size={12} className="text-amber-500/70" />
           </p>
         </footer>
       </div>

@@ -29,29 +29,29 @@ export const SOAL_DESCRIPTIONS: Record<SoalType, string> = {
 
 export const FIXED_MAPPING_25: Record<number, FixedMappingItem> = {
   1:  { type: "Pilihan Ganda", level: "Sedang", formType: "Pilihan Ganda" },
-  2:  { type: "PG Kompleks (PGK)", level: "Sedang", formType: "PG Kompleks" },
-  3:  { type: "Uraian Singkat", level: "Mudah", formType: "Uraian Pendek" },
-  4:  { type: "Benar/Salah", level: "Mudah", formType: "Benar-Salah" },
+  2:  { type: "PG Kompleks", level: "Sedang", formType: "PG Kompleks" },
+  3:  { type: "Uraian", level: "Mudah", formType: "Uraian Pendek" },
+  4:  { type: "Benar-Salah", level: "Mudah", formType: "Benar-Salah" },
   5:  { type: "Menjodohkan", level: "Sedang", formType: "Menjodohkan" },
-  6:  { type: "Uraian Panjang", level: "Sulit", formType: "Uraian" },
+  6:  { type: "Uraian", level: "Sulit", formType: "Uraian" },
   7:  { type: "Pilihan Ganda", level: "Sedang", formType: "Pilihan Ganda" },
-  8:  { type: "Uraian Singkat", level: "Mudah", formType: "Uraian Pendek" },
-  9:  { type: "Benar/Salah", level: "Sedang", formType: "Benar-Salah" },
-  10: { type: "PG Kompleks (PGK)", level: "Sulit", formType: "PG Kompleks" },
+  8:  { type: "Uraian", level: "Mudah", formType: "Uraian Pendek" },
+  9:  { type: "Benar-Salah", level: "Sedang", formType: "Benar-Salah" },
+  10: { type: "PG Kompleks", level: "Sulit", formType: "PG Kompleks" },
   11: { type: "Menjodohkan", level: "Sedang", formType: "Menjodohkan" },
-  12: { type: "Uraian Panjang", level: "Sulit", formType: "Uraian" },
+  12: { type: "Uraian", level: "Sulit", formType: "Uraian" },
   13: { type: "Pilihan Ganda", level: "Mudah", formType: "Pilihan Ganda" },
-  14: { type: "PG Kompleks (PGK)", level: "Sedang", formType: "PG Kompleks" },
-  15: { type: "Benar/Salah", level: "Mudah", formType: "Benar-Salah" },
-  16: { type: "Benar/Salah", level: "Sedang", formType: "Benar-Salah" },
+  14: { type: "PG Kompleks", level: "Sedang", formType: "PG Kompleks" },
+  15: { type: "Benar-Salah", level: "Mudah", formType: "Benar-Salah" },
+  16: { type: "Benar-Salah", level: "Sedang", formType: "Benar-Salah" },
   17: { type: "Menjodohkan", level: "Sulit", formType: "Menjodohkan" },
-  18: { type: "Uraian Panjang", level: "Sulit", formType: "Uraian" },
+  18: { type: "Uraian", level: "Sulit", formType: "Uraian" },
   19: { type: "Pilihan Ganda", level: "Sedang", formType: "Pilihan Ganda" },
-  20: { type: "PG Kompleks (PGK)", level: "Sulit", formType: "PG Kompleks" },
-  21: { type: "Uraian Panjang", level: "Sedang", formType: "Uraian" },
-  22: { type: "Benar/Salah", level: "Sedang", formType: "Benar-Salah" },
-  23: { type: "PG Kompleks (PGK)", level: "Sedang", formType: "PG Kompleks" },
-  24: { type: "Uraian Panjang", level: "Sulit", formType: "Uraian" },
+  20: { type: "PG Kompleks", level: "Sulit", formType: "PG Kompleks" },
+  21: { type: "Uraian", level: "Sedang", formType: "Uraian" },
+  22: { type: "Benar-Salah", level: "Sedang", formType: "Benar-Salah" },
+  23: { type: "PG Kompleks", level: "Sedang", formType: "PG Kompleks" },
+  24: { type: "Uraian", level: "Sulit", formType: "Uraian" },
   25: { type: "Pilihan Ganda", level: "Sulit", formType: "Pilihan Ganda" }
 };
 
@@ -100,15 +100,35 @@ export function parseNomorSoal(inputStr: string): number {
 export function parseInputMateri(rawText: string): Array<{ bab: string; subs: string[] }> {
   if (!rawText || !rawText.trim()) return [];
   const lines = rawText.split('\n').map((l) => l.trim()).filter((l) => l.length > 0);
+  if (lines.length === 0) return [];
+
+  // Check if there are any lines that explicitly declare a Bab/Tema/Materi Pokok/Unit
+  const hasExplicitBab = lines.some((l) =>
+    /^(bab\s*\d+|bab\b|tema\s*\d+|materi\s+pokok|unit\s*\d+)/i.test(l)
+  );
+
+  // If there are NO explicit Bab declarations, treat every line as an individual sub-bab / topic
+  if (!hasExplicitBab) {
+    const cleanSubs = lines
+      .map((l) => l.replace(/^[0-9]+[\.\)]\s*/, '').replace(/^[-*•]\s*/, '').trim())
+      .filter((l) => l.length > 0);
+
+    return [
+      {
+        bab: 'Materi Pokok',
+        subs: cleanSubs.length > 0 ? cleanSubs : ['—'],
+      },
+    ];
+  }
+
+  // If there are explicit Bab headers, group sub-babs under their respective Babs
   const results: Array<{ bab: string; subs: string[] }> = [];
   let currentBab = '';
   let currentSubbab: string[] = [];
 
   for (const line of lines) {
     const cleanLine = line.replace(/^[0-9]+[\.\)]\s*/, '').replace(/^[-*•]\s*/, '').trim();
-    const isBabIndicator =
-      /^(bab\s*\d+|bab\b|materi\s*\d+|tema\s*\d+)/i.test(line) ||
-      (!line.startsWith('-') && !line.startsWith('*') && !line.startsWith('•') && currentBab === '');
+    const isBabIndicator = /^(bab\s*\d+|bab\b|tema\s*\d+|materi\s+pokok|unit\s*\d+)/i.test(line);
 
     if (isBabIndicator) {
       if (currentBab) {
@@ -123,9 +143,8 @@ export function parseInputMateri(rawText: string): Array<{ bab: string; subs: st
 
   if (currentBab) {
     results.push({ bab: currentBab, subs: currentSubbab.length > 0 ? [...currentSubbab] : ['—'] });
-  } else if (lines.length > 0) {
-    results.push({ bab: lines[0], subs: lines.slice(1).length > 0 ? lines.slice(1) : ['—'] });
   }
+
   return results;
 }
 
@@ -183,54 +202,72 @@ export function buildAutomaticAssessment(rawMateri: string, totalQuestions: numb
     targets.push({ bab: 'Materi Pokok 1', sub: '—' });
   } else {
     parsedMateri.forEach((m) => {
-      m.subs.forEach((s) => {
-        targets.push({ bab: m.bab, sub: s });
-      });
+      if (m.subs.length === 0 || (m.subs.length === 1 && m.subs[0] === '—')) {
+        targets.push({ bab: m.bab, sub: '—' });
+      } else {
+        m.subs.forEach((s) => {
+          targets.push({ bab: m.bab, sub: s });
+        });
+      }
     });
   }
 
-  const targetPerPacket = Math.max(3, Math.min(5, Math.ceil(numQ / Math.max(targets.length, 1))));
+  const totalTargets = targets.length;
+
+  // Determine number of packets dynamically so that ALL sub-babs (including 10 and beyond) are included:
+  // - When totalTargets >= numQ: create numQ packets (each question gets a packet).
+  // - When totalTargets >= Math.ceil(numQ / 4): create totalTargets packets so every sub-bab has its own packet!
+  // - When totalTargets is small (e.g. 1-3 targets): create ~6-7 packets cycling through targets with ~3-4 questions each.
+  let numPackets: number;
+  if (totalTargets >= numQ) {
+    numPackets = numQ;
+  } else if (totalTargets >= Math.ceil(numQ / 4)) {
+    numPackets = totalTargets;
+  } else {
+    numPackets = Math.min(numQ, Math.max(totalTargets, Math.ceil(numQ / 4)));
+  }
+
+  // Distribute all numQ questions across numPackets without any gaps
+  const baseCount = Math.floor(numQ / numPackets);
+  const extraCount = numQ % numPackets;
 
   const intermediatePackets: GeneratedPacketStructure[] = [];
-  let currentPacketItems: typeof questionItems = [];
-  let targetIdx = 0;
+  let currentQIdx = 0;
 
-  questionItems.forEach((item) => {
-    const conflict = currentPacketItems.find(
-      (it) => it.formType === item.formType && it.level !== item.level
-    );
-    const packetFull = currentPacketItems.length >= targetPerPacket;
+  for (let pIdx = 0; pIdx < numPackets; pIdx++) {
+    const qCount = pIdx < extraCount ? baseCount + 1 : baseCount;
+    const packetItems = questionItems.slice(currentQIdx, currentQIdx + qCount);
+    currentQIdx += qCount;
 
-    if ((conflict || packetFull) && currentPacketItems.length > 0) {
-      const t = targets[targetIdx % targets.length];
-      intermediatePackets.push({
-        packetNumber: intermediatePackets.length + 1,
-        bab: t.bab,
-        sub: t.sub,
-        stimulusDesc: '',
-        useGambar: false,
-        gayaGambar: 'Berwarna',
-        jumlahParagraf: '2',
-        items: [...currentPacketItems],
-      });
-      currentPacketItems = [];
-      targetIdx++;
+    const t = targets[pIdx % totalTargets];
+    let subDesc = t.sub;
+
+    // If there are more sub-babs than questions (e.g. 30 sub-babs for 25 questions),
+    // fold any excess sub-babs into packets so that every sub-bab is represented
+    if (totalTargets > numPackets) {
+      const extraTargetsForPacket: string[] = [];
+      for (let ext = numPackets + pIdx; ext < totalTargets; ext += numPackets) {
+        if (targets[ext].sub && targets[ext].sub !== '—') {
+          extraTargetsForPacket.push(targets[ext].sub);
+        }
+      }
+      if (extraTargetsForPacket.length > 0) {
+        subDesc =
+          subDesc !== '—'
+            ? `${subDesc} & ${extraTargetsForPacket.join(' & ')}`
+            : extraTargetsForPacket.join(' & ');
+      }
     }
 
-    currentPacketItems.push(item);
-  });
-
-  if (currentPacketItems.length > 0) {
-    const t = targets[targetIdx % targets.length];
     intermediatePackets.push({
-      packetNumber: intermediatePackets.length + 1,
+      packetNumber: pIdx + 1,
       bab: t.bab,
-      sub: t.sub,
+      sub: subDesc,
       stimulusDesc: '',
       useGambar: false,
       gayaGambar: 'Berwarna',
       jumlahParagraf: '2',
-      items: [...currentPacketItems],
+      items: packetItems,
     });
   }
 
@@ -257,7 +294,7 @@ export function buildAutomaticAssessment(rawMateri: string, totalQuestions: numb
   });
 
   // Convert to PacketData format for React state
-  const finalPackets: PacketData[] = intermediatePackets.map((p) => {
+  const finalPackets: PacketData[] = intermediatePackets.map((p, idx) => {
     const details = createDefaultSoalDetails();
     const groupedByType: Record<string, { level: LevelType; numbers: number[] }> = {};
 
@@ -281,7 +318,7 @@ export function buildAutomaticAssessment(rawMateri: string, totalQuestions: numb
     });
 
     return {
-      id: `packet_auto_${p.packetNumber}_${Date.now()}`,
+      id: `packet_auto_${p.packetNumber}_${Date.now()}_${idx}_${Math.random().toString(36).substring(2, 6)}`,
       packetNumber: p.packetNumber,
       materi: p.bab,
       tujuan: p.sub !== '—' ? p.sub : '',
@@ -487,12 +524,15 @@ ATURAN WAJIB DRAF UTAMA:
 
     if (kelengkapan.includes('Kunci dan Skor Jawaban')) {
       p += `### KUNCI JAWABAN DAN PEDOMAN PENSKORAN
-Sajikan kunci jawaban nomor 1 sampai ${totalQuestions} secara lengkap dan tuntas:
-- Pilihan Ganda: Kunci 1 jawaban benar (A, B, C, atau D) beserta pembahasan ringkas (Bobot skor = 1).
-- Pilihan Ganda Kompleks (PG Kompleks): Kunci WAJIB mencantumkan SEMUA pilihan abjad yang benar DALAM SATU BARIS YANG SAMA / SEJAJAR (lebih dari 1 pilihan benar, contoh: "[A] dan [B]" atau "[A], [C], [D]") beserta pembahasan dan pedoman penskoran (skor 2 jika semua benar, skor 1 jika sebagian benar, skor 0 jika salah/kosong). DILARANG KERAS memisahkan atau membuat baris baru per huruf opsi (misal menulis A lalu enter ke baris baru B)! Seluruh huruf opsi kunci PG Kompleks WAJIB ditulis berdampingan dalam satu baris yang sama.
-- Benar-Salah: Kunci per baris pernyataan (B/S) (Maksimal skor 3).
-- Menjodohkan: Pasangan jawaban yang tepat (1-X, 2-Y, dst.) (Maksimal skor 4).
-- Uraian / Isian: Kunci jawaban lengkap beserta rubrik penskoran dan bobot skor tiap butir nomor.\n\n`;
+Sajikan kunci jawaban nomor 1 sampai ${totalQuestions} secara berurutan dan tuntas:
+ATURAN WAJIB NOMOR KUNCI JAWABAN:
+- Seluruh kunci jawaban WAJIB ditulis berurutan nomor 1 sampai ${totalQuestions} secara sekuensial (Nomor 1, Nomor 2, Nomor 3, ..., Nomor ${totalQuestions}) persis sama dengan urutan dan nomor butir soal pada naskah ujian!
+- DILARANG KERAS mengelompokkan lalu mereset penomoran kembali ke nomor 1 (contoh larangan: menulis Pilihan Ganda nomor 1-5 lalu PG Kompleks nomor 1 lagi). Setiap butir kunci jawaban WAJIB mencantumkan nomor soal aslinya di naskah ujian.
+- Untuk butir soal Pilihan Ganda: Kunci 1 jawaban benar (A, B, C, atau D) beserta pembahasan ringkas (Bobot skor = 1).
+- Untuk butir soal Pilihan Ganda Kompleks (PG Kompleks): Kunci WAJIB mencantumkan SEMUA pilihan abjad yang benar DALAM SATU BARIS YANG SAMA / SEJAJAR (contoh: "[A] dan [B]" atau "[A], [C], [D]") beserta pembahasan dan pedoman penskoran (skor 2 jika semua benar, skor 1 jika sebagian benar, skor 0 jika salah/kosong). DILARANG KERAS memecah huruf kunci ke baris berikutnya.
+- Untuk butir soal Benar-Salah: Kunci per baris pernyataan (B/S) (Maksimal skor 3).
+- Untuk butir soal Menjodohkan: Pasangan jawaban yang tepat (1-X, 2-Y, dst.) (Maksimal skor 4).
+- Untuk butir soal Uraian / Isian: Kunci jawaban lengkap beserta rubrik penskoran dan bobot skor tiap butir nomor.\n\n`;
     }
 
     if (kelengkapan.includes('Kisi-Kisi')) {
@@ -518,7 +558,13 @@ Sajikan format kartu soal resmi standar Kurikulum Merdeka (per butir soal) memua
       p += `### TABEL MATERI ESENSIAL PEMBELAJARAN
 Sajikan materi esensial dalam format TABEL MATRIKS LENGKAP nomor 1 sampai ${totalQuestions} dengan kolom:
 | No Soal | Capaian Pembelajaran | Tujuan Pembelajaran | Uraian Materi | Jenis Soal |
-Wajib cantumkan baris tabel untuk setiap butir soal secara runtut dan mendalam sesuai materi pokok yang diujikan.\n\n`;
+ATURAN WAJIB PENGISIAN MATERI ESENSIAL (DILARANG MENGGUNAKAN KALIMAT TEMPLATE UMUM):
+1. Kolom "No Soal": Nomor urut butir soal (1 sampai ${totalQuestions}).
+2. Kolom "Capaian Pembelajaran": Tuliskan Capaian Pembelajaran (CP) kurikulum yang otentik dan spesifik mengacu pada kompetensi inti butir soal tersebut (bukan kalimat template).
+3. Kolom "Tujuan Pembelajaran": Rumuskan Tujuan Pembelajaran (TP) operasional dan terukur yang diuji pada butir soal tersebut.
+4. Kolom "Uraian Materi": Uraikan ringkasan materi esensial, konsep kunci, fakta ilmiah, prinsip, atau rumus aplikatif yang menjadi bahan uji butir soal tersebut secara mendalam dan berbobot.
+5. Kolom "Jenis Soal": Tuliskan TEPAT SATU jenis soal yang pasti untuk butir tersebut tanpa tanda garis miring (Pilih salah satu secara tegas: "Pilihan Ganda", "PG Kompleks", "Benar-Salah", "Menjodohkan", atau "Uraian"). DILARANG KERAS menggabungkan lebih dari satu jenis atau menambahkan variasi garis miring.
+Wajib cantumkan baris tabel lengkap untuk seluruh butir nomor 1 sampai ${totalQuestions}.\n\n`;
     }
 
     if (kelengkapan.includes('Telaah Soal')) {

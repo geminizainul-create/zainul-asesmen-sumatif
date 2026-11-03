@@ -1,6 +1,7 @@
 import React from 'react';
-import { Sparkles, BookOpen, RotateCcw } from 'lucide-react';
+import { BookOpen, RotateCcw } from 'lucide-react';
 import { SAMPLE_PRESETS } from '../utils/assessmentLogic';
+import { BatikKawungIcon, BatikHeaderRibbon } from './BatikDecorations';
 
 interface HeaderProps {
   onLoadPreset: (presetIndex: number) => void;
@@ -11,11 +12,16 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({ onLoadPreset, onReset, onOpenFormatModal }) => {
   return (
     <header className="mb-10 text-center relative">
-      <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-semibold uppercase tracking-wider mb-3">
-        <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
-        Standar Kurikulum Merdeka
+      {/* Decorative Traditional Batik Ribbon */}
+      <BatikHeaderRibbon className="mb-3" />
+
+      <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 text-xs font-semibold uppercase tracking-wider mb-3 shadow-sm backdrop-blur-xs">
+        <BatikKawungIcon size={15} className="text-amber-400" />
+        <span>Standar Kurikulum Merdeka</span>
+        <BatikKawungIcon size={15} className="text-amber-400" />
       </div>
-      <h1 className="text-3xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-indigo-300 to-indigo-500 tracking-tight">
+
+      <h1 className="text-3xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-indigo-200 to-amber-300 tracking-tight drop-shadow-sm">
         Generator AI - Soal
       </h1>
       <p className="text-slate-400 font-medium mt-2 text-sm md:text-base">

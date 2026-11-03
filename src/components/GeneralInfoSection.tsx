@@ -1,6 +1,7 @@
 import React, { useRef } from 'react';
 import { Download, Upload, Info } from 'lucide-react';
 import { GeneralInfo } from '../types/assessment';
+import { BatikCornerFlourish } from './BatikDecorations';
 
 interface GeneralInfoSectionProps {
   info: GeneralInfo;
@@ -26,8 +27,9 @@ export const GeneralInfoSection: React.FC<GeneralInfoSectionProps> = ({
   };
 
   return (
-    <div className="bg-slate-800 p-5 md:p-6 rounded-2xl shadow-xl mb-6 border border-slate-700/80">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+    <div className="relative overflow-hidden bg-slate-800 p-5 md:p-6 rounded-2xl shadow-xl mb-6 border border-slate-700/80">
+      <BatikCornerFlourish position="top-right" />
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3 relative z-10">
         <h2 className="text-base md:text-lg font-semibold text-indigo-400 flex items-center gap-2">
           <span className="bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded text-xs font-mono font-bold">
             01

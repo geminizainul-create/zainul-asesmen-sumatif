@@ -2,6 +2,7 @@ import React from 'react';
 import { Trash2, Image, AlignLeft, Info } from 'lucide-react';
 import { GayaGambar, LevelType, PacketData, SoalType, StimulusMode } from '../types/assessment';
 import { SOAL_TYPES, SOAL_DESCRIPTIONS } from '../utils/assessmentLogic';
+import { BatikKawungIcon } from './BatikDecorations';
 
 interface PacketCardProps {
   packet: PacketData;
@@ -74,7 +75,8 @@ export const PacketCard: React.FC<PacketCardProps> = ({
 
       {/* Header */}
       <h2 className="text-base md:text-lg font-semibold mb-4 text-indigo-400 flex items-center gap-2">
-        <span className="bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded text-xs font-mono font-bold">
+        <span className="bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded text-xs font-mono font-bold inline-flex items-center gap-1">
+          <BatikKawungIcon size={11} className="text-amber-400/80" />
           {packetNumberStr}
         </span>
         Rincian Paket Soal
