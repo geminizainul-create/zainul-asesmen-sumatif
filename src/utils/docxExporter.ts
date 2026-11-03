@@ -17,6 +17,7 @@ import { saveAs } from 'file-saver';
 import JSZip from 'jszip';
 import { formatMathToCleanText } from './mathFormatter';
 import { PacketData } from '../types/assessment';
+import { extractAndSortQuestionNumbers } from './assessmentLogic';
 
 export interface ExamIdentity {
   jenisUjian: string;
@@ -317,9 +318,22 @@ export function parseExamText(rawText: string): {
       const hasImageKeyword = /(gambar|infografis|diagram|ilustrasi|grafik|bagan|foto|peta|skema)/i.test(line);
       const isPureTextReading = /^(bacalah\s+(artikel|teks|wacana|bacaan|penggalan|kutipan|paragraf))/i.test(line) && !hasImageKeyword;
       const isImg = hasImageKeyword && !isPureTextReading;
+
+      // Auto-correct any inverted or unsorted question numbers in stimulus title (e.g. "nomor 13, 12!" -> "nomor 12, 13!")
+      const sanitizedTitle = line.replace(
+        /(menjawab\s+soal\s+nomor\s+)([\d\s,–\-dan]+)(!|\.|\?|$)/i,
+        (match, prefix, numPart, punct) => {
+          const numbers = extractAndSortQuestionNumbers([numPart]);
+          if (numbers.length > 1) {
+            return `${prefix}${numbers.join(', ')}${punct}`;
+          }
+          return match;
+        }
+      );
+
       currentStimulus = {
         type: 'stimulus',
-        title: line,
+        title: sanitizedTitle,
         paragraphs: [],
         isImageStimulus: isImg,
       };

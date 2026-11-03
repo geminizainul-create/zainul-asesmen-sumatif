@@ -85,8 +85,8 @@ export function parseNomorSoal(inputStr: string): number {
   if (!inputStr) return 0;
   const parts = inputStr.split(/[ ,;]+/);
   for (const part of parts) {
-    if (part.includes('-')) {
-      const bounds = part.split('-');
+    if (part.includes('-') || part.includes('–')) {
+      const bounds = part.split(/[-–]/);
       if (bounds.length === 2 && !isNaN(Number(bounds[0])) && !isNaN(Number(bounds[1]))) {
         total += Math.abs(parseInt(bounds[1], 10) - parseInt(bounds[0], 10)) + 1;
       }
@@ -95,6 +95,36 @@ export function parseNomorSoal(inputStr: string): number {
     }
   }
   return total;
+}
+
+export function extractAndSortQuestionNumbers(inputs: string[]): number[] {
+  const nums: number[] = [];
+  inputs.forEach((raw) => {
+    if (!raw) return;
+    const parts = raw.split(/[ ,;]+/);
+    for (const part of parts) {
+      if (part.includes('-') || part.includes('–')) {
+        const bounds = part.split(/[-–]/);
+        if (bounds.length === 2) {
+          const start = parseInt(bounds[0], 10);
+          const end = parseInt(bounds[1], 10);
+          if (!isNaN(start) && !isNaN(end)) {
+            const min = Math.min(start, end);
+            const max = Math.max(start, end);
+            for (let n = min; n <= max; n++) {
+              nums.push(n);
+            }
+          }
+        }
+      } else {
+        const n = parseInt(part, 10);
+        if (!isNaN(n)) {
+          nums.push(n);
+        }
+      }
+    }
+  });
+  return Array.from(new Set(nums)).sort((a, b) => a - b);
 }
 
 export function parseInputMateri(rawText: string): Array<{ bab: string; subs: string[] }> {
@@ -235,7 +265,8 @@ export function buildAutomaticAssessment(rawMateri: string, totalQuestions: numb
   let currentQIdx = 0;
 
   for (let pIdx = 0; pIdx < numPackets; pIdx++) {
-    const qCount = pIdx < extraCount ? baseCount + 1 : baseCount;
+    // Distribute remainder questions towards later packets so earlier packets maintain standard pairs (e.g. 1-2, 3-4, ..., 13-14)
+    const qCount = pIdx >= numPackets - extraCount ? baseCount + 1 : baseCount;
     const packetItems = questionItems.slice(currentQIdx, currentQIdx + qCount);
     currentQIdx += qCount;
 
@@ -390,12 +421,14 @@ export function generateAssessmentPrompt(
     if (activeDetails.length === 0) return;
     validPackets++;
 
-    const nomorList: string[] = [];
+    const rawNomorList: string[] = [];
     activeDetails.forEach(([, item]) => {
       const noVal = item.nomor.trim();
-      if (noVal) nomorList.push(noVal);
+      if (noVal) rawNomorList.push(noVal);
     });
-    const rentangNomor = nomorList.length > 0 ? nomorList.join(', ') : 'terkait';
+    const sortedNumbers = extractAndSortQuestionNumbers(rawNomorList);
+    const rentangNomor =
+      sortedNumbers.length > 0 ? sortedNumbers.join(', ') : rawNomorList.join(', ') || 'terkait';
 
     p += `\n[PAKET ${String(validPackets).padStart(2, '0')}]\n`;
     p += `Materi: ${materi}\nTujuan: ${tujuan}\n`;
@@ -421,7 +454,16 @@ Buatlah teks bacaan/paragraf yang mendalam sebanyak TEPAT ${jumlahParagraf} para
       p += `Ketentuan: Paket soal ini dibuat TANPA STIMULUS (langsung ke butir pertanyaan tanpa teks bacaan ataupun gambar). Buatlah soal langsung berdasarkan materi dan tujuan di atas:\n`;
     }
 
-    activeDetails.forEach(([jenisStr, item]) => {
+    // Sort activeDetails by their lowest question number so questions appear in sequential order
+    const sortedActiveDetails = [...activeDetails].sort((a, b) => {
+      const aNums = extractAndSortQuestionNumbers([a[1].nomor]);
+      const bNums = extractAndSortQuestionNumbers([b[1].nomor]);
+      const aMin = aNums.length > 0 ? aNums[0] : 999;
+      const bMin = bNums.length > 0 ? bNums[0] : 999;
+      return aMin - bMin;
+    });
+
+    sortedActiveDetails.forEach(([jenisStr, item]) => {
       const jenis = jenisStr as SoalType;
       const level = item.level;
       const nomor = item.nomor.trim() || '-';
