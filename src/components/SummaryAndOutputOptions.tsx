@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, CheckSquare, Sparkles, Send, Loader2, Info } from 'lucide-react';
+import { Plus, Send, Info } from 'lucide-react';
 import { KelengkapanType, SoalType } from '../types/assessment';
 
 interface SummaryAndOutputOptionsProps {
@@ -168,42 +168,22 @@ export const SummaryAndOutputOptions: React.FC<SummaryAndOutputOptionsProps> = (
       </div>
 
       {/* Action Buttons */}
-      <div className="mt-8 pt-4 flex flex-col md:flex-row items-center justify-center gap-4">
-        {/* Generate Prompt AI button (original workflow) */}
+      <div className="mt-8 pt-4 flex flex-col items-center justify-center gap-3">
+        {/* Generate Prompt AI button */}
         <button
           type="button"
           onClick={onGeneratePrompt}
-          className="w-full md:w-auto min-w-[240px] bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3.5 px-6 rounded-xl shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer text-sm"
+          className="w-full md:w-auto min-w-[280px] bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3.5 px-8 rounded-xl shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer text-sm"
         >
           <Send className="w-4 h-4" />
           Generate Prompt AI
         </button>
 
-        {/* Direct Gemini AI generator button (full-stack superpower) */}
-        <button
-          type="button"
-          onClick={onGenerateAI}
-          disabled={isGeneratingAI}
-          className="w-full md:w-auto min-w-[280px] bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 hover:from-emerald-500 hover:to-indigo-500 text-white font-bold py-3.5 px-6 rounded-xl shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer text-sm disabled:opacity-60 disabled:cursor-not-allowed"
-        >
-          {isGeneratingAI ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" />
-              Menyusun Soal dengan Gemini AI...
-            </>
-          ) : (
-            <>
-              <Sparkles className="w-4 h-4 text-emerald-200" />
-              ✨ Buat Soal Langsung (Gemini AI)
-            </>
-          )}
-        </button>
+        <p className="text-amber-400 text-[11px] text-center italic flex items-center justify-center gap-1 mt-1">
+          <Info className="w-3 h-3 shrink-0" />
+          Klik <strong>Generate Prompt AI</strong> untuk menghasilkan draf instruksi asesmen lengkap yang siap disalin ke ChatGPT, Gemini, atau model AI lainnya.
+        </p>
       </div>
-
-      <p className="text-amber-400 text-[11px] text-center italic flex items-center justify-center gap-1">
-        <Info className="w-3 h-3 shrink-0" />
-        Pilih <strong>Generate Prompt AI</strong> untuk menyalin teks instruksi ke ChatGPT/Gemini web, atau <strong>Buat Soal Langsung</strong> untuk menghasilkan naskah asesmen instan di aplikasi.
-      </p>
     </div>
   );
 };

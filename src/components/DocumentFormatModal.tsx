@@ -869,33 +869,8 @@ export const DocumentFormatModal: React.FC<DocumentFormatModalProps> = ({
               </div>
 
               <p className="text-xs text-slate-300 leading-relaxed">
-                Fitur gambar hanya disematkan pada <strong className="text-emerald-300">stimulus yang meminta gambar/diagram</strong>. Stimulus berupa <strong className="text-slate-200">teks paragraf bacaan</strong> tetap disajikan utuh sebagai teks tanpa disisipkan kotak gambar.
+                Fitur gambar disematkan pada <strong className="text-emerald-300">stimulus yang meminta gambar/diagram</strong>. Anda dapat mengunggah gambar dari perangkat atau memilih pustaka diagram siap pakai di bawah ini. Stimulus berupa <strong className="text-slate-200">teks bacaan</strong> tetap disajikan utuh sebagai teks tanpa kotak gambar.
               </p>
-
-              {/* Tombol Cepat: Generate Semua Gambar Jadi dengan AI (Khusus stimulus yang meminta gambar) */}
-              {imageStimulusIndices.length > 0 && imageStimulusIndices.some((idx) => !parsedItems[idx]?.imageUrl) && (
-                <div className="flex flex-wrap items-center justify-between gap-2 p-3 bg-gradient-to-r from-emerald-950/70 via-slate-900 to-indigo-950/60 rounded-xl border border-emerald-500/40 shadow-sm">
-                  <div className="text-xs">
-                    <span className="font-bold text-emerald-300 flex items-center gap-1.5">
-                      <Sparkles className="w-3.5 h-3.5 text-yellow-300" />
-                      Generator Gambar Jadi Otomatis (AI)
-                    </span>
-                    <span className="text-slate-400 text-[11px]">
-                      Hasilkan ilustrasi &amp; diagram otomatis khusus stimulus yang meminta gambar visual
-                    </span>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={handleGenerateAllImages}
-                    disabled={isGeneratingAll}
-                    className="px-3.5 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-md transition-all active:scale-95 disabled:opacity-50"
-                  >
-                    <Sparkles className={`w-3.5 h-3.5 ${isGeneratingAll ? 'animate-spin' : ''}`} />
-                    {isGeneratingAll ? 'Sedang Memproses...' : `⚡ Generate ${imageStimulusIndices.filter((idx) => !parsedItems[idx]?.imageUrl).length} Gambar Jadi`}
-                  </button>
-                </div>
-              )}
 
               {stimulusIndices.length === 0 ? (
                 <div className="p-3 bg-slate-900/50 rounded-lg border border-slate-700 text-center text-xs text-slate-400 italic">
@@ -1066,17 +1041,6 @@ export const DocumentFormatModal: React.FC<DocumentFormatModalProps> = ({
                         ) : (
                           /* Action options to attach image */
                           <div className="mt-2.5 pt-2.5 border-t border-slate-700/60 flex flex-wrap items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => handleGenerateImageWithAI(itemIdx)}
-                              disabled={isGenerating}
-                              className="px-3.5 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-sm transition-all active:scale-95 disabled:opacity-50"
-                              title="Hasilkan gambar/diagram jadi secara otomatis dengan AI berdasarkan prompt ini"
-                            >
-                              <Sparkles className={`w-3.5 h-3.5 text-yellow-300 ${isGenerating ? 'animate-spin' : ''}`} />
-                              {isGenerating ? 'Sedang Dibuat...' : '✨ Hasilkan Gambar Jadi (AI)'}
-                            </button>
-
                             <button
                               type="button"
                               onClick={() => handleTriggerStimulusUpload(itemIdx)}
@@ -2005,25 +1969,37 @@ export const DocumentFormatModal: React.FC<DocumentFormatModalProps> = ({
                                 </div>
                               )}
 
-                              {/* Kotak Interaktif jika Gambar Belum Dihasilkan pada Mode Gambar Jadi */}
+                              {/* Kotak Interaktif jika Gambar Belum Dipasang pada Mode Gambar Jadi */}
                               {showImageMode && isImgStimulus && !item.imageUrl && (
                                 <div className="my-2.5 p-3 rounded-lg border-2 border-dashed border-indigo-400 bg-indigo-50/70 text-center font-sans">
                                   <div className="flex items-center justify-center gap-1.5 text-indigo-900 font-bold text-xs mb-1">
                                     <ImageIcon className="w-4 h-4 text-indigo-600" />
-                                    <span>Area Gambar Jadi Stimulus (Belum Digenerate)</span>
+                                    <span>Area Gambar Jadi Stimulus (Belum Dipasang)</span>
                                   </div>
                                   <p className="text-[10px] text-slate-600 italic mb-2 max-w-sm mx-auto">
                                     "{item.imagePrompt || 'Deskripsi diagram visual stimulus'}"
                                   </p>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleGenerateImageWithAI(idx)}
-                                    disabled={isGeneratingImageFor[idx]}
-                                    className="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-[11px] font-semibold cursor-pointer shadow-sm active:scale-95 disabled:opacity-50"
-                                  >
-                                    <Sparkles className={`w-3 h-3 inline mr-1 text-yellow-300 ${isGeneratingImageFor[idx] ? 'animate-spin' : ''}`} />
-                                    {isGeneratingImageFor[idx] ? 'Sedang Memproses AI...' : '✨ Hasilkan Gambar Jadi Sekarang'}
-                                  </button>
+                                  <div className="flex items-center justify-center gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleTriggerStimulusUpload(idx)}
+                                      className="px-2.5 py-1 bg-slate-700 hover:bg-slate-600 text-white rounded text-[11px] font-medium cursor-pointer shadow-sm flex items-center gap-1"
+                                    >
+                                      <Upload className="w-3 h-3" />
+                                      Unggah Gambar
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setActiveTargetStimulusIndex(idx);
+                                        setShowDiagramLibraryModal(true);
+                                      }}
+                                      className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-[11px] font-medium cursor-pointer shadow-sm flex items-center gap-1"
+                                    >
+                                      <BookOpen className="w-3 h-3" />
+                                      Pilih Diagram Cepat
+                                    </button>
+                                  </div>
                                 </div>
                               )}
 

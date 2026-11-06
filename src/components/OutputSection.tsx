@@ -183,10 +183,10 @@ export const OutputSection: React.FC<OutputSectionProps> = ({
 
             {!isGeneratingAI && !aiGeneratedText && (
               <div className="text-center py-12 text-slate-400">
-                <Sparkles className="w-10 h-10 text-indigo-400/50 mx-auto mb-3" />
-                <p className="text-sm font-medium text-slate-300">Belum ada naskah soal yang dibuat langsung.</p>
+                <FileText className="w-10 h-10 text-indigo-400/50 mx-auto mb-3" />
+                <p className="text-sm font-medium text-slate-300">Belum ada naskah soal yang dimuat.</p>
                 <p className="text-xs text-slate-500 mt-1">
-                  Klik tombol <strong className="text-emerald-400">"✨ Buat Soal Langsung (Gemini AI)"</strong> di atas untuk memproses soal secara otomatis menggunakan server Gemini AI.
+                  Salin teks prompt dari tab <strong className="text-indigo-400">"Prompt AI Terhasil"</strong> ke ChatGPT atau Gemini web, lalu tempel naskah hasil pada <strong className="text-blue-400">"Format Dokumen F4"</strong> untuk dicetak/diunduh.
                 </p>
               </div>
             )}
@@ -204,7 +204,7 @@ export const OutputSection: React.FC<OutputSectionProps> = ({
                 )}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mt-4 pt-3 border-t border-slate-700/80 text-xs">
                   <p className="text-amber-400 italic">
-                    Tips: Klik tombol <strong className="text-white">"Format Dokumen F4"</strong> untuk menyematkan kop sekolah, menghasilkan gambar jadi stimulus otomatis (AI), dan mengunduh file .docx resmi (tersedia opsi <span className="text-emerald-300 font-semibold">Soal + Gambar Jadi</span> &amp; <span className="text-indigo-300 font-semibold">Soal + Prompt Gambar</span>).
+                    Tips: Klik tombol <strong className="text-white">"Format Dokumen F4"</strong> untuk menyematkan kop sekolah, mengatur gambar stimulus, dan mengunduh file .docx resmi (tersedia opsi <span className="text-emerald-300 font-semibold">Soal + Gambar Jadi</span> &amp; <span className="text-indigo-300 font-semibold">Soal + Prompt Gambar</span>).
                   </p>
                   <button
                     type="button"
