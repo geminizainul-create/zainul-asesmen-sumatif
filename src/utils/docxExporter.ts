@@ -110,15 +110,35 @@ export function parseExamText(rawText: string): {
     return { items: [], warnings: [] };
   }
 
-  // Pre-process inline options separated on a single line if present
-  let normalized = rawText.replace(/\r\n/g, '\n');
+  // Pre-process raw text into lines, handling inline options (A. text B. text) without breaking table rows
+  const rawLines = rawText.replace(/\r\n/g, '\n').split('\n');
+  const lines: string[] = [];
 
-  // Split multiple choices on single line e.g. "A. x B. y" -> "A. x\nB. y"
-  normalized = normalized.replace(/(\b[A-Ea-e][\.\)][^\n]*?)(?=\s+[B-Eb-e][\.\)]\s+)/g, '$1\n');
-  // Split multiple PG Kompleks on single line e.g. "[A] x [B] y" -> "[A] x\n[B] y"
-  normalized = normalized.replace(/(\[[A-Ea-e]\][^\n]*?)(?=\s+\[[B-Eb-e]\]\s*)/g, '$1\n');
+  for (const rawLine of rawLines) {
+    const trimmed = rawLine.trim();
 
-  const lines = normalized.split('\n');
+    // Do NOT split table rows or lines containing table delimiters
+    if (trimmed.startsWith('|') || trimmed.includes('|')) {
+      lines.push(rawLine);
+      continue;
+    }
+
+    // Split multiple choices on single line e.g. "A. x B. y" -> "A. x\nB. y"
+    if (/^[A-Ea-e][\.\)]\s+/.test(trimmed)) {
+      const splitOptions = rawLine.split(/\s+(?=[B-Eb-e][\.\)]\s+)/).map((p) => p.trim()).filter(Boolean);
+      lines.push(...splitOptions);
+      continue;
+    }
+
+    // Split multiple PG Kompleks on single line e.g. "[A] x [B] y" -> "[A] x\n[B] y"
+    if (/^\[[A-Ea-e]\]\s*/.test(trimmed)) {
+      const splitOptions = rawLine.split(/\s+(?=\[[B-Eb-e]\])/).map((p) => p.trim()).filter(Boolean);
+      lines.push(...splitOptions);
+      continue;
+    }
+
+    lines.push(rawLine);
+  }
   const items: ParsedItem[] = [];
   const warnings: string[] = [];
 
@@ -194,12 +214,30 @@ export function parseExamText(rawText: string): {
     }
 
     // Markdown Table Row check
-    const isTableRow = trimmed.startsWith('|') && trimmed.endsWith('|');
-    if (isTableRow) {
-      // Skip markdown alignment row e.g. |---|:---|
-      if (/^\|[\s\-:|]+\|$/.test(trimmed)) continue;
+    const isAlignmentRow = /^\|?[\s\-:|]+\|?$/.test(trimmed) && trimmed.replace(/[^|\-:]/g, '').length >= 3;
+    if (isAlignmentRow) {
+      pendingBlankLine = false;
+      continue;
+    }
 
-      const cells = trimmed
+    const hasTablePipes = trimmed.includes('|');
+    const isTableRow =
+      (trimmed.startsWith('|') && trimmed.endsWith('|')) ||
+      (inTable && hasTablePipes && !/^(\d+)[\.\)]\s+/.test(trimmed)) ||
+      (hasTablePipes && (trimmed.match(/\|/g) || []).length >= 2 && !/^(\d+)[\.\)]\s+/.test(trimmed));
+
+    if (isTableRow) {
+      let normalizedRow = trimmed;
+      if (!normalizedRow.startsWith('|')) normalizedRow = '| ' + normalizedRow;
+      if (!normalizedRow.endsWith('|')) normalizedRow = normalizedRow + ' |';
+
+      // Skip markdown alignment row e.g. |---|:---|
+      if (/^\|[\s\-:|]+\|$/.test(normalizedRow)) {
+        pendingBlankLine = false;
+        continue;
+      }
+
+      const cells = normalizedRow
         .split('|')
         .slice(1, -1)
         .map((c) => cleanMarkdown(c.trim()));
@@ -1841,35 +1879,75 @@ function renderGenericItems(
       );
 
       if (item.embeddedTable && item.embeddedTable.length > 0) {
+        const colCount = Math.max(...item.embeddedTable.map((r) => r.length));
+
+        const getColWidthPercent = (cIdx: number): number => {
+          if (colCount === 3) {
+            // Menjodohkan: No (8%), Pernyataan (57%), Pilihan Jawaban (35%)
+            if (cIdx === 0) return 8;
+            if (cIdx === 1) return 57;
+            return 35;
+          }
+          if (colCount === 4) {
+            // Benar-Salah: No (8%), Pernyataan (72%), B (10%), S (10%)
+            if (cIdx === 0) return 8;
+            if (cIdx === 1) return 72;
+            return 10;
+          }
+          if (colCount === 2) {
+            return 50;
+          }
+          return Math.floor(100 / colCount);
+        };
+
+        const getColAlignment = (cIdx: number, rIdx: number) => {
+          if (rIdx === 0) return AlignmentType.CENTER;
+          if (colCount === 3) {
+            if (cIdx === 0) return AlignmentType.CENTER;
+            return AlignmentType.LEFT;
+          }
+          if (colCount === 4) {
+            if (cIdx === 0 || cIdx >= 2) return AlignmentType.CENTER;
+            return AlignmentType.LEFT;
+          }
+          return AlignmentType.LEFT;
+        };
+
         const tableRows = item.embeddedTable.map(
           (row, rIdx) =>
             new TableRow({
-              children: row.map(
-                (cell) =>
-                  new TableCell({
-                    borders: cellBorders,
-                    margins: { top: 60, bottom: 60, left: 100, right: 100 },
-                    children: [
-                      new Paragraph({
-                        spacing: { before: 0, after: 0, line: 240 },
-                        children: [
-                          new TextRun({
-                            text: cleanMarkdown(cell || ' '),
-                            bold: rIdx === 0,
-                            font: 'Times New Roman',
-                            size: 20,
-                          }),
-                        ],
-                      }),
-                    ],
-                  })
-              ),
+              children: row.map((cell, cIdx) => {
+                const widthPct = getColWidthPercent(cIdx);
+                const align = getColAlignment(cIdx, rIdx);
+                const isHeader = rIdx === 0;
+
+                return new TableCell({
+                  width: { size: widthPct, type: WidthType.PERCENTAGE },
+                  borders: cellBorders,
+                  shading: isHeader ? { fill: 'F1F5F9' } : undefined,
+                  margins: { top: 60, bottom: 60, left: 100, right: 100 },
+                  children: [
+                    new Paragraph({
+                      alignment: align,
+                      spacing: { before: 0, after: 0, line: 240 },
+                      children: [
+                        new TextRun({
+                          text: cleanMarkdown(cell || ' '),
+                          bold: isHeader,
+                          font: 'Times New Roman',
+                          size: 20,
+                        }),
+                      ],
+                    }),
+                  ],
+                });
+              }),
             })
         );
 
         docChildren.push(
           new Table({
-            width: { size: 95, type: WidthType.PERCENTAGE },
+            width: { size: 100, type: WidthType.PERCENTAGE },
             alignment: AlignmentType.CENTER,
             rows: tableRows,
           })

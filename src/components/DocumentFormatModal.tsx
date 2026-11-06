@@ -2040,25 +2040,48 @@ export const DocumentFormatModal: React.FC<DocumentFormatModalProps> = ({
 
                               {/* Embedded Table */}
                               {item.embeddedTable && item.embeddedTable.length > 0 && (
-                                <div className="my-2 ml-7 overflow-x-auto">
-                                  <table className="border border-black border-collapse text-[10pt] w-full">
+                                <div className="my-2.5 ml-7 overflow-x-auto">
+                                  <table className="border border-black border-collapse text-[10pt] w-full table-fixed">
                                     <tbody>
-                                      {item.embeddedTable.map((row, rIdx) => (
-                                        <tr key={rIdx}>
-                                          {row.map((cell, cIdx) => (
-                                            <td
-                                              key={cIdx}
-                                              className={`border border-black px-2 py-1 text-left ${
-                                                rIdx === 0
-                                                  ? 'font-bold bg-slate-100 text-center'
-                                                  : 'font-normal text-black'
-                                              }`}
-                                            >
-                                              {cell || ' '}
-                                            </td>
-                                          ))}
-                                        </tr>
-                                      ))}
+                                      {item.embeddedTable.map((row, rIdx) => {
+                                        const colCount = Math.max(...(item.embeddedTable?.map((r) => r.length) || [row.length]));
+                                        return (
+                                          <tr key={rIdx}>
+                                            {row.map((cell, cIdx) => {
+                                              let widthClass = '';
+                                              let alignClass = 'text-left';
+                                              const isHeader = rIdx === 0;
+
+                                              if (isHeader) {
+                                                alignClass = 'text-center font-bold bg-slate-100';
+                                              } else if (colCount === 3) {
+                                                if (cIdx === 0) alignClass = 'text-center font-normal';
+                                              } else if (colCount === 4) {
+                                                if (cIdx === 0 || cIdx >= 2) alignClass = 'text-center font-normal';
+                                              }
+
+                                              if (colCount === 3) {
+                                                if (cIdx === 0) widthClass = 'w-[8%]';
+                                                else if (cIdx === 1) widthClass = 'w-[57%]';
+                                                else widthClass = 'w-[35%]';
+                                              } else if (colCount === 4) {
+                                                if (cIdx === 0) widthClass = 'w-[8%]';
+                                                else if (cIdx === 1) widthClass = 'w-[72%]';
+                                                else widthClass = 'w-[10%]';
+                                              }
+
+                                              return (
+                                                <td
+                                                  key={cIdx}
+                                                  className={`border border-black px-2 py-1.5 ${widthClass} ${alignClass} text-black align-top`}
+                                                >
+                                                  {cell || '\u00A0'}
+                                                </td>
+                                              );
+                                            })}
+                                          </tr>
+                                        );
+                                      })}
                                     </tbody>
                                   </table>
                                 </div>
